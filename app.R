@@ -2,32 +2,42 @@
 Sys.setenv(TZ = "Europe/Rome")
 
 library(shiny)
+library(readxl)
 
 ui <- fluidPage(
-	titlePanel("La mia Shiny su shinyapps.io"),
+	titlePanel("Elaborazione movimentazioni da BDN (IN SVILUPPO)"),
 	sidebarLayout(
 		sidebarPanel(
-			textInput("name", "Come ti chiami?", ""),
-			actionButton("go", "Saluta")
+			fileInput('file1', 'Seleziona un file xls da BDN',
+								accept = c(".xls"), buttonLabel = "Sfoglia...", 
+								placeholder = "Nessun file selezionato"
+			)
 		),
 		mainPanel(
-			verbatimTextOutput("greet")
+			verbatimTextOutput("n_animali")
 		)
 	)
 )
 
 server <- function(input, output, session) {
-	# Esempio uso variabili d'ambiente (impostale su shinyapps.io)
-	api_key <- Sys.getenv("MY_API_KEY", unset = NA)
-	
-	observeEvent(input$go, {
-		msg <- if (!is.na(api_key)) {
-			paste("Ciao", input$name, "- ho anche una API key configurata.")
-		} else {
-			paste("Ciao", input$name, "- nessuna API key configurata (ok in dev).")
-		}
-		output$greet <- renderText(msg)
+
+	# Importazione dati --------------------------------
+	animali <- reactive({
+		req(input$file1)
+		inFile <- input$file1
+		# Leggi il file xls (usa readxl o altro pacchetto a tua scelta)
+		df <- readxl::read_excel(inFile$datapath)
+		df
 	})
+	
+	# ottieni il numero di righe dei dati importati
+	
+	output$n_animali <- renderText({
+		df <- animali()
+		paste("Numero di animali importati:", nrow(df))
+	})
+
+
 }
 
 shinyApp(ui, server)
