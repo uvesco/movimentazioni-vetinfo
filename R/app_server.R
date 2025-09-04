@@ -17,23 +17,24 @@ app_server <- function(input, output, session) {
 		if (is.null(df)) {
 			"File non ancora caricato"
 		} else {
-			tryCatch({
-				if(gruppo() == "vuoto") {
-					return(paste0("File vuoto: ", colnames(df)[1]))
-				}else{
-				paste("File importato correttamente. Gruppo specie:", gruppo())
-				}, error = function(e) {
-				paste("Errore nel file:", e$message)
-			
-			})
-		}
-	})
-	
-	
-	# ottieni il numero di righe dei dati importati
-	
-	output$n_animali <- renderText({
-		df <- animali()
-		paste("Numero di animali importati:", nrow(df))
-	})
+                        tryCatch({
+                                if (gruppo() == "vuoto") {
+                                        return(paste0("File vuoto: ", colnames(df)[1]))
+                                } else {
+                                        paste("File importato correttamente. Gruppo specie:", gruppo())
+                                }
+                        }, error = function(e) {
+                                paste("Errore nel file:", e$message)
+                        })
+                }
+        })
+
+
+        # ottieni il numero di righe dei dati importati
+
+        output$n_animali <- renderText({
+                df <- animali()
+                req(df)
+                paste("Numero di animali importati:", nrow(df))
+        })
 }
