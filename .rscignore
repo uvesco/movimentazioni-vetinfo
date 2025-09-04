@@ -2,6 +2,7 @@
 .Rprofile
 .Rproj.user
 *.Rproj
+2do.txt
 data_raw/
 tests/
 docs/
