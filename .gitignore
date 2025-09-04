@@ -38,3 +38,4 @@ renv/staging/
 .Rprofile.user
 2do.txt
 test
+tests
