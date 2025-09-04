@@ -2,6 +2,7 @@ Sys.setenv(TZ = "Europe/Rome")
 
 library(shiny)
 library(readxl)
+library(dplyr)
 
 # app.R
 source("R/app_ui.R")

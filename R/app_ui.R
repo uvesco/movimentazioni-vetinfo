@@ -4,14 +4,15 @@ app_ui <- function() {
 	titlePanel("Elaborazione movimentazioni da BDN (IN SVILUPPO)"),
 	sidebarLayout(
 		sidebarPanel(
-			fileInput('file1', 'Seleziona un file xls da BDN',
-								accept = c(".xls"), buttonLabel = "Sfoglia...", 
-								placeholder = "Nessun file selezionato"
-			)
+
+			mod_upload_movimentazioni_ui("upload_mov")
+			
+		
 		),
 		mainPanel(
+			verbatimTextOutput("tipo_file"),
 			verbatimTextOutput("n_animali")
 		)
 	)
-)
+	)
 }
