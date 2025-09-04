@@ -12,36 +12,37 @@ app_server <- function(input, output, session) {
 		determinare_gruppo(df, df_specie)
 	})
 	
-	# crea due nuovi tab in caso animali() != "vuoto" e non sia NULL
-	
-	observe({
-		req(animali())
-		if (gruppo() != "vuoto") {
+        # crea due nuovi tab in caso animali() != "vuoto" e non sia NULL
 
-				insertTab(
-					inputId = "tabs", target = "input", position = "after",
-					tab = tabPanel(title = "Elaborazione", value = "elaborazione",
-					               p(gruppo()))
-					)
-				
-				insertTab(
-					inputId = "tabs", target = "elaborazione", position = "after",
-					tab = tabPanel(title = "Output", value = "output",
-												 p("prova2"))
-					)
-				
-			
-		} else {
-			# rimuovi tab se esistono
-			if ("Elaborazione" %in% names(input$tabs)) {
-				removeTab("tabs", "elaborazione")
-			}
-			if ("Output" %in% names(input$tabs)) {
-				removeTab("tabs", "output")
-			}
-		}
-	})
-	
+        tabs_inserite <- reactiveVal(FALSE)
+
+        observe({
+                req(animali())
+                if (gruppo() != "vuoto" && !tabs_inserite()) {
+
+                                insertTab(
+                                        inputId = "tabs", target = "input", position = "after",
+                                        tab = tabPanel(title = "Elaborazione", value = "elaborazione",
+                                                       textOutput("gruppo_tab"))
+                                        )
+
+                                insertTab(
+                                        inputId = "tabs", target = "elaborazione", position = "after",
+                                        tab = tabPanel(title = "Output", value = "output",
+                                                                                                 p("prova2"))
+                                        )
+
+                                tabs_inserite(TRUE)
+
+                } else if (gruppo() == "vuoto" && tabs_inserite()) {
+                        removeTab("tabs", "elaborazione")
+                        removeTab("tabs", "output")
+                        tabs_inserite(FALSE)
+                }
+        })
+
+        output$gruppo_tab <- renderText(gruppo())
+
         # messaggio sul tipo di file importato
 	
 	output$tipo_file <- renderText({
