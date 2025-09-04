@@ -2,17 +2,29 @@ app_ui <- function() {
 	
 	fluidPage(
 	titlePanel("Elaborazione movimentazioni da BDN (IN SVILUPPO)"),
-	sidebarLayout(
-		sidebarPanel(
+	
+	tabsetPanel(
+		id = "tabs",
+		tabPanel(
+			title = "Input", value = "input",
 
-			mod_upload_movimentazioni_ui("upload_mov")
+			sidebarLayout(
+				sidebarPanel(
+					
+					mod_upload_movimentazioni_ui("upload_mov")
+					
+					
+				),
+				mainPanel(
+					verbatimTextOutput("tipo_file"),
+					verbatimTextOutput("n_animali")
+				)
+			)
 			
-		
-		),
-		mainPanel(
-			verbatimTextOutput("tipo_file"),
-			verbatimTextOutput("n_animali")
 		)
 	)
+	
+	
+
 	)
 }
