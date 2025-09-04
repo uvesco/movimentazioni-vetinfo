@@ -12,6 +12,38 @@ app_server <- function(input, output, session) {
 		determinare_gruppo(df, df_specie)
 	})
 	
+	# crea due nuovi tab in caso animali() != "vuoto" e non sia NULL
+	
+	observe({
+		req(animali())
+		if (gruppo() != "vuoto") {
+
+				insertTab(
+					inputId = "tabs", target = "input", position = "after",
+					tab = tabPanel(title = "Elaborazione", value = "elaborazione",
+					               p(gruppo()))
+					)
+				
+				insertTab(
+					inputId = "tabs", target = "elaborazione", position = "after",
+					tab = tabPanel(title = "Output", value = "output",
+												 p("prova2"))
+					)
+				
+			
+		} else {
+			# rimuovi tab se esistono
+			if ("Elaborazione" %in% names(input$tabs)) {
+				removeTab("tabs", "elaborazione")
+			}
+			if ("Output" %in% names(input$tabs)) {
+				removeTab("tabs", "output")
+			}
+		}
+	})
+	
+        # messaggio sul tipo di file importato
+	
 	output$tipo_file <- renderText({
 		df <- animali()
 		if (is.null(df)) {
