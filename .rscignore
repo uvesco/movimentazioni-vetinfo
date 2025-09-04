@@ -1,1 +1,8 @@
 .Renviron
+.Rprofile
+.Rproj.user
+*.Rproj
+data_raw/
+tests/
+docs/
+README.Rmd
