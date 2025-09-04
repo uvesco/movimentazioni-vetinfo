@@ -5,5 +5,6 @@
 2do.txt
 data_raw/
 tests/
+test/
 docs/
 README.Rmd
