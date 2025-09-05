@@ -12,13 +12,15 @@ app_server <- function(input, output, session) {                               #
                 determinare_gruppo(df, df_specie)                            # applica la funzione di classificazione
         })
 
+        file_check <- mod_file_check_server("file_check", animali, gruppo)  # verifica struttura del file
+
         # crea due nuovi tab in caso animali() != "vuoto" e non sia NULL
 
         tabs_inserite <- reactiveVal(FALSE)                                  # memorizza se i tab sono stati aggiunti
 
         observe({                                                            # osserva cambiamenti nei dati
                 req(animali())                                              # esegue solo se dati presenti
-                if (gruppo() != "vuoto" && !tabs_inserite()) {             # se gruppo valido e tab non ancora inserite
+                if (gruppo() != "vuoto" && !tabs_inserite() && file_check() == T) {             # se gruppo valido e tab non ancora inserite
 
                                 insertTab(                                  # aggiunge tab "Elaborazione"
                                         inputId = "tabs", target = "input", position = "after",
@@ -68,6 +70,7 @@ app_server <- function(input, output, session) {                               #
         output$n_animali <- renderText({                                   # mostra numero di righe caricate
                 df <- animali()                                           # ottiene i dati
                 req(df)                                                   # si assicura che esistano
-                paste("Numero di animali importati:", nrow(df))          # restituisce il conteggio
+                paste0("Gruppo specie: ", gruppo(), "\n",          # restituisce il conteggio
+                "Numero di animali importati: ", nrow(df))          # restituisce il conteggio
         })
 }
