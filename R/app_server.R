@@ -1,62 +1,62 @@
 # R/app_server.R
-app_server <- function(input, output, session) {
-	
-	# Importazione dati --------------------------------
-	animali <- mod_upload_movimentazioni_server("upload_mov")
-	
-	df_specie <- read.csv("data_static/specie.csv", stringsAsFactors = FALSE)
-	
-	gruppo <- reactive({
-		req(animali())
-		df <- animali()
-		determinare_gruppo(df, df_specie)
-	})
-	
+app_server <- function(input, output, session) {                               # funzione server principale
+
+        # Importazione dati --------------------------------                 # sezione di importazione
+        animali <- mod_upload_movimentazioni_server("upload_mov")           # reactive del modulo di upload
+
+        df_specie <- read.csv("data_static/specie.csv", stringsAsFactors = FALSE)  # tabella specie statiche
+
+        gruppo <- reactive({                                                  # determina il gruppo di specie
+                req(animali())                                               # assicura che i dati siano presenti
+                df <- animali()                                              # recupera il dataframe caricato
+                determinare_gruppo(df, df_specie)                            # applica la funzione di classificazione
+        })
+
         # crea due nuovi tab in caso animali() != "vuoto" e non sia NULL
 
-        tabs_inserite <- reactiveVal(FALSE)
+        tabs_inserite <- reactiveVal(FALSE)                                  # memorizza se i tab sono stati aggiunti
 
-        observe({
-                req(animali())
-                if (gruppo() != "vuoto" && !tabs_inserite()) {
+        observe({                                                            # osserva cambiamenti nei dati
+                req(animali())                                              # esegue solo se dati presenti
+                if (gruppo() != "vuoto" && !tabs_inserite()) {             # se gruppo valido e tab non ancora inserite
 
-                                insertTab(
+                                insertTab(                                  # aggiunge tab "Elaborazione"
                                         inputId = "tabs", target = "input", position = "after",
                                         tab = tabPanel(title = "Elaborazione", value = "elaborazione",
                                                        textOutput("gruppo_tab"))
                                         )
 
-                                insertTab(
+                                insertTab(                                  # aggiunge tab "Output"
                                         inputId = "tabs", target = "elaborazione", position = "after",
                                         tab = tabPanel(title = "Output", value = "output",
                                                                                                  p("prova2"))
                                         )
 
-                                tabs_inserite(TRUE)
+                                tabs_inserite(TRUE)                         # segna che i tab sono stati inseriti
 
-                } else if (gruppo() == "vuoto" && tabs_inserite()) {
-                        removeTab("tabs", "elaborazione")
-                        removeTab("tabs", "output")
-                        tabs_inserite(FALSE)
+                } else if (gruppo() == "vuoto" && tabs_inserite()) {      # se file vuoto rimuove le tab aggiunte
+                        removeTab("tabs", "elaborazione")                # rimuove tab "Elaborazione"
+                        removeTab("tabs", "output")                      # rimuove tab "Output"
+                        tabs_inserite(FALSE)                                # aggiorna lo stato
                 }
         })
 
-        output$gruppo_tab <- renderText(gruppo())
+        output$gruppo_tab <- renderText(gruppo())                           # stampa il gruppo nella tab
 
         # messaggio sul tipo di file importato
-	
-	output$tipo_file <- renderText({
-		df <- animali()
-		if (is.null(df)) {
-			"File non ancora caricato"
-		} else {
-                        tryCatch({
-                                if (gruppo() == "vuoto") {
+
+        output$tipo_file <- renderText({                                    # messaggio informativo sul file caricato
+                df <- animali()                                            # recupera i dati
+                if (is.null(df)) {                                         # nessun file caricato
+                        "File non ancora caricato"
+                } else {
+                        tryCatch({                                         # gestisce eventuali errori
+                                if (gruppo() == "vuoto") {               # file vuoto
                                         return(paste0("File vuoto: ", colnames(df)[1]))
-                                } else {
+                                } else {                                   # file corretto
                                         paste("File importato correttamente. Gruppo specie:", gruppo())
                                 }
-                        }, error = function(e) {
+                        }, error = function(e) {                           # eventuali errori di lettura
                                 paste("Errore nel file:", e$message)
                         })
                 }
@@ -65,9 +65,9 @@ app_server <- function(input, output, session) {
 
         # ottieni il numero di righe dei dati importati
 
-        output$n_animali <- renderText({
-                df <- animali()
-                req(df)
-                paste("Numero di animali importati:", nrow(df))
+        output$n_animali <- renderText({                                   # mostra numero di righe caricate
+                df <- animali()                                           # ottiene i dati
+                req(df)                                                   # si assicura che esistano
+                paste("Numero di animali importati:", nrow(df))          # restituisce il conteggio
         })
 }
