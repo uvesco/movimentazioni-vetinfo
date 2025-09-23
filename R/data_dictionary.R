@@ -62,3 +62,21 @@ col_standard_ovicaprini <- c(
 	"orig_regione_cod",
 	"orig_asl_cod"
 )
+
+col_standard <- c(
+	"dest_regione_denom",
+	"dest_asl_cod",
+	"dest_asl_denom",
+	"dest_stabilimento_cod",
+	"dest_cf",
+	"dest_specie",
+	"dest_prov_cod_autom",
+	"dest_com",
+	"ingresso_motivo",
+	"ingresso_data",
+	"capo_identificativo",
+	"capo_identificativo_elettronico",
+	"orig_stabilimento_cod",
+	"orig_regione_cod",
+	"orig_asl_cod"
+)

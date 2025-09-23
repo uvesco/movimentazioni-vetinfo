@@ -16,6 +16,8 @@ app_server <- function(input, output, session) {                               #
 
         file_check <- mod_file_check_server("file_check", animali, gruppo)  # verifica struttura del file
 
+        st_import <- mod_standardize_server("df_standard", animali, gruppo)
+        
         # crea due nuovi tab in caso animali() != "vuoto" e non sia NULL
 
         tabs_inserite <- reactiveVal(FALSE)                                  # memorizza se i tab sono stati aggiunti
@@ -33,7 +35,7 @@ app_server <- function(input, output, session) {                               #
                                 insertTab(                                  # aggiunge tab "Output"
                                         inputId = "tabs", target = "elaborazione", position = "after",
                                         tab = tabPanel(title = "Output", value = "output",
-                                                                                                 p("prova2"))
+                                        							 textOutput("testCol"))
                                         )
 
                                 tabs_inserite(TRUE)                         # segna che i tab sono stati inseriti
@@ -46,6 +48,14 @@ app_server <- function(input, output, session) {                               #
         })
 
         output$gruppo_tab <- renderText(gruppo())                           # stampa il gruppo nella tab
+        
+        # test sulle colonne per verificare la struttura del file
+        output$testCol <- renderText({
+        	df <- st_import()
+        	fine <- colnames(df)
+        	fine
+        })
+        
 
         # messaggio sul tipo di file importato
 
@@ -58,7 +68,7 @@ app_server <- function(input, output, session) {                               #
                                 if (gruppo() == "vuoto") {               # file vuoto
                                         return(paste0("File vuoto: ", colnames(df)[1]))
                                 } else {                                   # file corretto
-                                        paste("File importato correttamente. Gruppo specie:", gruppo())
+                                        paste("File importato correttamente.")
                                 }
                         }, error = function(e) {                           # eventuali errori di lettura
                                 paste("Errore nel file:", e$message)
@@ -69,12 +79,14 @@ app_server <- function(input, output, session) {                               #
 
         # ottieni il numero di righe dei dati importati
 
-        output$n_animali <- renderText({                                   # mostra numero di righe caricate
+        output$n_animali <- renderUI({                                   # mostra numero di righe caricate
                 df <- animali()                                           # ottiene i dati
                 req(df)                                                   # si assicura che esistano
-                paste0("Gruppo specie: ", gruppo(), "\n",          # restituisce il conteggio
+                div(bs_icon("info-circle-fill"), em("Informazioni"), br(),
+                "Gruppo specie: ", gruppo(), br(),          # restituisce il conteggio
                 "Numero di animali importati: ", nrow(df))          # restituisce il conteggio
         })
         
+
         
 }
