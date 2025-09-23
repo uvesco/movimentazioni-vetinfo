@@ -15,7 +15,19 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 		if(gruppo() == "bovini"){
 			colnames(dati) <- col_standard_bovini
 		}
-		dati[, col_standard]
+		dati <- dati[, col_standard]
+		# origine ------
+		# ricavo l'origine dal codice di stalla italiano
+		dati$orig_com_stor <- substr(dati$orig_stabilimento_cod, 1, 5) # parte comunale del codice di stalla storico
+		dati <- merge(dati, df_codici_stabilimento[,-1], 
+									by.x = "orig_com_stor",
+									by.y = "COD_STABILIMENTO",
+									all.x = T,
+									all.y = F)
+		# nascita --------
+		# nato in italia
+		dati$IT_n <- grepl("^IT", dati$capo_identificativo)
+		
 		})
 	})
 }
