@@ -4,7 +4,9 @@ app_server <- function(input, output, session) {                               #
         # Importazione dati --------------------------------                 # sezione di importazione
         animali <- mod_upload_movimentazioni_server("upload_mov")           # reactive del modulo di upload
 
+        # dati_statici
         df_specie <- read.csv("data_static/specie.csv", stringsAsFactors = FALSE)  # tabella specie statiche
+        df_codici_stabilimento <- read.csv("data_static/chiave_codici_stabilimento.csv", stringsAsFactors = FALSE) # tabella comuni e province
 
         gruppo <- reactive({                                                  # determina il gruppo di specie
                 req(animali())                                               # assicura che i dati siano presenti
@@ -73,4 +75,6 @@ app_server <- function(input, output, session) {                               #
                 paste0("Gruppo specie: ", gruppo(), "\n",          # restituisce il conteggio
                 "Numero di animali importati: ", nrow(df))          # restituisce il conteggio
         })
+        
+        
 }
