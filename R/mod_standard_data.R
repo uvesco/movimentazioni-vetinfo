@@ -30,7 +30,7 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 		# nascita --------
 		# nato in italia
 		dati$IT_n <- grepl("^IT", dati$capo_identificativo)
-		
+		dati
 		})
 	})
 }
