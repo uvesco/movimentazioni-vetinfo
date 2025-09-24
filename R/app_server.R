@@ -6,7 +6,7 @@ app_server <- function(input, output, session) {                               #
 
         # dati_statici
         df_specie <- read.csv("data_static/specie.csv", stringsAsFactors = FALSE)  # tabella specie statiche
-        df_codici_stabilimento <- read.csv("data_static/chiave_codici_stabilimento.csv", stringsAsFactors = FALSE) # tabella comuni e province
+
 
         gruppo <- reactive({                                                  # determina il gruppo di specie
                 req(animali())                                               # assicura che i dati siano presenti

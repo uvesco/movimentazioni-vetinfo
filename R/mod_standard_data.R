@@ -7,6 +7,9 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 			req(animali())                                 # richiede che i dati siano presenti
 			req(gruppo())                                  # richiede che il gruppo sia definito
 			
+			# carico tabelle di supporto
+			df_codici_stabilimento <- read.csv("data_static/chiave_codici_stabilimento.csv", stringsAsFactors = FALSE) # tabella comuni e province
+			
 		dati <- animali()
 		
 		if(gruppo() == "ovicaprini"){
