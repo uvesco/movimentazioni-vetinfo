@@ -3,6 +3,7 @@
 .Rproj.user
 *.Rproj
 2do.txt
+src/
 data_raw/
 tests/
 test/
