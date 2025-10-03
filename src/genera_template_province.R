@@ -10,7 +10,7 @@ library(tidyr)
 # library(tidyselect)
 # library(lubridate)
 library(readxl)
-library(openxlsx2)
+library(openxlsx)
 
 data_da = "01/01/1991"
 data_a  = format(Sys.Date(), "%d/%m/%Y")   # metti la data odierna
@@ -29,5 +29,4 @@ indenni <- merge(df_prov_att, indenni[, c(1, 13:15)], by= "COD_PROV_STORICO", al
 # aggiungere un foglio con nella cella A1 la versione del REGOLAMENTO DI ESECUZIONE (UE) 2021/620 DELLA COMMISSIONE
 # https://eur-lex.europa.eu/eli/reg_impl/2021/620
 
-write_xlsx(indenni, "data_static/prov_indenni.xlsx")
-
+write.xlsx(indenni, "data_static/prov_indenni_template.xlsx")
