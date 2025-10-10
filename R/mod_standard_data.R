@@ -38,7 +38,7 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 		# se non sono tutte cifre è nullo
 		dati$prov_nascita[!grepl("^[0-9]{3}$", dati$prov_nascita)] <- NA
 		
-	# capi vecchi ------
+	## capi vecchi ------
 		# i capi vecchi hanno la sigla della provincia dopo it:
 		# si lavora sulla selezione dei capi che iniziano per IT e che hanno prov_nascita nullo
 		dati$prov_nascita_vec <- NA
@@ -66,12 +66,8 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 		# uso match per aggiungere il codice istat della provincia di provenienza al capo
 		dati$prov_provenienza <- NA
 		# utilizzo match al dataframe "df_codici_stabilimento" per aggiungere il codice istat al capo "prov_provenienza"
-		dati$prov_provenienza <- 
-		
 		
 		dati$prov_provenienza <- df_codici_stabilimento$COD_UTS_DT_FI[match(dati$orig_com_stor, df_codici_stabilimento$COD_STABILIMENTO)]
-		
-		
 		
 		# ## provenienza -------
 		# # proveniente da IT_p vero o falso (se `AZI PROVENIENZA` non è nullo)
