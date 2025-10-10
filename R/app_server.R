@@ -64,7 +64,8 @@ app_server <- function(input, output, session) {                               #
                                         extend = "excel",
                                         filename = paste0("movimentazioni_", format(Sys.Date(), "%Y%m%d"))
                                 )),
-                                pageLength = 25,
+                                pageLength = 8,
+                                lengthMenu = c(8, 15, 25),
                                 scrollX = TRUE
                         ),
                         filter = "top",
