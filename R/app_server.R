@@ -34,9 +34,11 @@ app_server <- function(input, output, session) {                               #
 
                                 insertTab(                                  # aggiunge tab "Output"
                                         inputId = "tabs", target = "elaborazione", position = "after",
-                                        tab = tabPanel(title = "Output", value = "output",
-                                        							 textOutput("testCol"))
+                                        tab = tabPanel(
+                                                title = "Output", value = "output",
+                                                DT::DTOutput("tabella_output")
                                         )
+                                )
 
                                 tabs_inserite(TRUE)                         # segna che i tab sono stati inseriti
 
@@ -49,12 +51,26 @@ app_server <- function(input, output, session) {                               #
 
         output$gruppo_tab <- renderText(gruppo())                           # stampa il gruppo nella tab
         
-        # test sulle colonne per verificare la struttura del file
-        output$testCol <- renderText({
-        	df <- st_import()
-        	fine <- colnames(df)
-        	fine
-        })
+        # tabella finale completa con possibilità di download in Excel
+        output$tabella_output <- DT::renderDT({
+                df <- st_import()
+                req(df)
+                DT::datatable(
+                        df,
+                        extensions = "Buttons",
+                        options = list(
+                                dom = "Bfrtip",
+                                buttons = list(list(
+                                        extend = "excel",
+                                        filename = paste0("movimentazioni_", format(Sys.Date(), "%Y%m%d"))
+                                )),
+                                pageLength = 25,
+                                scrollX = TRUE
+                        ),
+                        filter = "top",
+                        rownames = FALSE
+                )
+        }, server = FALSE)
         
 
         # messaggio sul tipo di file importato
