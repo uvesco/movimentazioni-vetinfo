@@ -228,7 +228,7 @@ sum(duplicated(chiave_stab_nondup$COD_STABILIMENTO))
 	chiave_codici_stabilimento[chiave_codici_stabilimento$COD_STABILIMENTO %in% duplicati, ]
 	
 # elimino tutto tranne chiave_codici_stabilimento chiave_regioni e df_prov_val # ho tolto la chiave province generata al fondo
-rm(list = setdiff(ls(), c(oggetti_inizio_script, "chiave_codici_stabilimento", "chiave_province", "chiave_regioni", "chiave_stab_nondup")))
+rm(list = setdiff(ls(), c(oggetti_inizio_script, "chiave_codici_stabilimento", "chiave_province", "chiave_regioni", "chiave_stab_nondup", "df_prov_val")))
 
 
 

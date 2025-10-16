@@ -487,7 +487,7 @@ write.csv(chiave_regioni,
 					row.names = FALSE,
 					fileEncoding = "UTF-8"
 )
-write.csv(chiave_province,
+write.csv(df_prov_val,
 					file = "data_static/geo/df_province.csv",
 					row.names = FALSE,
 					fileEncoding = "UTF-8"

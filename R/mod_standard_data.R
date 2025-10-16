@@ -1,4 +1,4 @@
-# modulo per standardizzare le colonne
+# modulo per standardizzare le colonne e collegare tutti i dati geografici e delle malattie
 
 mod_standardize_server <- function(id, animali, gruppo) {               # definizione del server del modulo
 	moduleServer(id, function(input, output, session) {            # modulo server vero e proprio
@@ -9,18 +9,89 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 						
 		dati <- animali()
 		
+		# per testare le funzioni con file di esempio
 		# source("tests/test.R")
 		
-			# carico tabelle di supporto
-			df_codici_stabilimento <- read.csv("data_static/chiave_codici_stabilimento.csv", stringsAsFactors = FALSE, colClasses = "character") # tabella comuni e province
-			df_province <- read.csv("data_static/chiave_province.csv", stringsAsFactors = FALSE, colClasses = "character") # tabella province
-			df_regioni <- read.csv("data_static/chiave_regioni.csv", stringsAsFactors = FALSE, colClasses = "character") # tabella regioni
-			df_decodifica <- read.csv("data_static/chiave_decodifica.csv", stringsAsFactors = FALSE) # tabella decodifica
+			# importazione dati statici -----------------------
+			## tabelle geografiche ------
+			# "df_comuni.csv" "df_prefissi_stab.csv" "df_province.csv" "df_regioni.csv" "df_stati_iso3166.csv" (UTF8)
+			# prefissi codice di stabilimento
+			df_stab          <- read.csv("data_static/geo/df_prefissi_stab.csv",
+																	 stringsAsFactors = FALSE, 
+																	 colClasses = "character")
+			# tabella stati esteri
+			df_stati        <- read.csv("data_static/geo/df_stati_iso3166.csv", 
+																	 stringsAsFactors = FALSE, 
+																	 colClasses = "character",
+																	 fileEncoding = "UTF-8")
+			# tabella regioni
+			df_regioni      <- read.csv("data_static/geo/df_regioni.csv", 
+																	 stringsAsFactors = FALSE, 
+																	 colClasses = "character")
+			# tabella province
+			df_province     <- read.csv("data_static/geo/df_province.csv",
+																	 stringsAsFactors = FALSE, 
+																	 colClasses = "character")
+			# tabella comuni
+			df_comuni       <- read.csv("data_static/geo/df_comuni.csv",
+																	 stringsAsFactors = FALSE, 
+																	 colClasses = "character",
+																	 fileEncoding = "UTF-8")
 			
-			# carico tutte le tabelle (files.xlsx) presenti in data_static/malattie e distinguo tra gli elenchi di comuni 
+			
+			# df_codici_stabilimento <- read.csv("data_static/", stringsAsFactors = FALSE, colClasses = "character") # tabella comuni e province
+			# df_province <- read.csv("data_static/chiave_province.csv", stringsAsFactors = FALSE, colClasses = "character") # tabella province
+			# df_regioni <- read.csv("data_static/chiave_regioni.csv", stringsAsFactors = FALSE, colClasses = "character") # tabella regioni
+			# df_decodifica <- read.csv("data_static/chiave_decodifica.csv", stringsAsFactors = FALSE) # tabella decodifica
+			# 
+			## tabelle malattie --------
+			# carico tutte le tabelle (files.xlsx) presenti in data_static/malattie e distinguo tra gli elenchi di comuni e le malattie
 	    files_malattie <- list.files("data_static/malattie", pattern = "\\.xlsx$", full.names = TRUE)
-	    col_malattie <- 
+			
+	    tipi_files_malattie_fogli <- list(province_indenni = c("province", "metadati"),
+	    																	blocchi = c("regioni", "province", "comuni", "metadati"))
+	    # tipi di campi dei files metadati
+	    meta_col_types  <- c("text", "text", "text", "text", "date", "date")
+	    df_meta_malattie <- structure(list(campo = character(0), malattia = character(0), 
+	    																	 specie = character(0), riferimento = character(0), data_inizio = structure(numeric(0), class = "Date"), 
+	    																	 data_fine = structure(numeric(0), class = "Date")), row.names = integer(0), class = "data.frame")
+	    
 			for(i in 1:length(files_malattie)){
+				file <- files_malattie[i]
+				fogli <- tolower(trimws(openxlsx::getSheetNames(file)))  # fogli effettivi del file
+				
+				if (setequal(fogli, tipi_files_malattie_fogli[["province_indenni"]])) {
+					# === file con province + metadati ===
+					provinceind <- openxlsx::read.xlsx(file, sheet = "province")
+					
+					
+					
+					
+				} else if (setequal(fogli, tipi_files_malattie_fogli[["blocchi"]])) {
+					# === file con blocchi (regioni, province, comuni, metadati) ===
+					regioni  <- openxlsx::read.xlsx(file, sheet = "regioni")
+					province <- openxlsx::read.xlsx(file, sheet = "province")
+					comuni   <- openxlsx::read.xlsx(file, sheet = "comuni")
+					metadati <- openxlsx::read.xlsx(file, sheet = "metadati")
+					# (accoda ai dataframe corrispondenti)
+					message("File ", basename(file), " riconosciuto come 'blocchi'")
+					
+				} else {
+					# === file non riconosciuto ===
+					stop("struttura fogli non riconosciuta in ", basename(file))
+					print(fogli)
+				}
+				
+				metadati <- readxl::read_excel(file, sheet = "metadati", col_types = meta_col_types)
+				
+				
+				
+				
+				
+				
+				
+				
+				fogli <- openxlsx::getSheetNames(files_malattie[i])
 				assign(paste0("malattia_", tools::file_path_sans_ext(basename(files_malattie[i]))), 
 								readxl::read_excel(files_malattie[i], col_types = "text"))
 			}
@@ -29,7 +100,15 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 			# attenzione ai comuni non validi (flag nella tabella) quando collego
 			
 			
-
+	    
+	    # per la nascita lavorare solo su province attuali
+	    
+	    
+	    
+	    
+	    
+# elaborazione dati -----------------------
+## standardizzazione colonne -----------------------
 		
 		# trasformazione in colonne standardizzate indipendentemente dalle specie --------
 		if(gruppo() == "ovicaprini"){
