@@ -6,7 +6,11 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 		reactive({                                             # valore reattivo restituito
 			req(animali())                                 # richiede che i dati siano presenti
 			req(gruppo())                                  # richiede che il gruppo sia definito
-			
+						
+		dati <- animali()
+		
+		# source("tests/test.R")
+		
 			# carico tabelle di supporto
 			df_codici_stabilimento <- read.csv("data_static/chiave_codici_stabilimento.csv", stringsAsFactors = FALSE, colClasses = "character") # tabella comuni e province
 			df_province <- read.csv("data_static/chiave_province.csv", stringsAsFactors = FALSE, colClasses = "character") # tabella province
@@ -15,6 +19,7 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 			
 			# carico tutte le tabelle (files.xlsx) presenti in data_static/malattie e distinguo tra gli elenchi di comuni 
 	    files_malattie <- list.files("data_static/malattie", pattern = "\\.xlsx$", full.names = TRUE)
+	    col_malattie <- 
 			for(i in 1:length(files_malattie)){
 				assign(paste0("malattia_", tools::file_path_sans_ext(basename(files_malattie[i]))), 
 								readxl::read_excel(files_malattie[i], col_types = "text"))
@@ -24,8 +29,7 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 			# attenzione ai comuni non validi (flag nella tabella) quando collego
 			
 			
-			
-		dati <- animali()
+
 		
 		# trasformazione in colonne standardizzate indipendentemente dalle specie --------
 		if(gruppo() == "ovicaprini"){
