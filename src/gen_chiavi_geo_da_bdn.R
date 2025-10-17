@@ -477,6 +477,26 @@ df_completo <- merge(df_completo,
 # riordino campi
 df_completo <- df_completo[, c("cod_stab", "COD_RIP", "COD_REG", "DEN_REG", "COD_PROV","COD_UTS", "PRO_COM_T", "COMUNE")]
 
+# solo per aggiornamento file intra anno 2025 nella regione sardegna (da aggiornare se ci saranno nuovi cambiamenti nello shapefile dei comuni da Istat)
+
+# df_completo <- df_prefissi_stab
+df_completo <- merge(df_completo, 
+										 df_trans_comuni_2025[, c("PRO_COM_T", "PRO_COM_T_REL", "COD_UTS_REL")],
+										 by = "PRO_COM_T",
+										 all.x = T,
+										 all.y = F
+										 )
+df_completo$PRO_COM_T <- ifelse(!is.na(df_completo$PRO_COM_T_REL),
+																df_completo$PRO_COM_T_REL,
+																df_completo$PRO_COM_T
+																)
+df_completo$COD_UTS <- ifelse(!is.na(df_completo$COD_UTS_REL),
+															df_completo$COD_UTS_REL,
+															df_completo$COD_UTS
+															)
+df_completo <- df_completo[, c("cod_stab", "COD_RIP", "COD_REG", "DEN_REG", "COD_PROV","COD_UTS", "PRO_COM_T", "COMUNE")]
+
+
 write.csv(df_completo,
 					file = "data_static/geo/df_prefissi_stab.csv",
 					row.names = FALSE,
@@ -492,7 +512,7 @@ write.csv(df_prov_val,
 					row.names = FALSE,
 					fileEncoding = "UTF-8"
 )
-write.csv(df_comuni,
+write.csv(df_comuni_now,
 					file = "data_static/geo/df_comuni.csv",
 					row.names = FALSE,
 					fileEncoding = "UTF-8"

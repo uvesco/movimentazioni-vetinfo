@@ -74,7 +74,9 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 				metadati <- readxl::read_excel(file, sheet = "metadati", col_types = meta_col_types)
 				
 				if (setequal(fogli, tipi_files_malattie_fogli[["province_indenni"]])) {
-					# === file con province + metadati ===
+					########################################
+					# === file con province + metadati === #
+					########################################
 					provinceind <- openxlsx::read.xlsx(file, sheet = "province")
 					# (aggiunge con join al dataframe df_province le colonne indicate in metadati$campo
 					message("File ", basename(file), " riconosciuto come 'province_indenni'")
@@ -95,8 +97,10 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 								all.y = FALSE)
 
 				} else if (setequal(fogli, tipi_files_malattie_fogli[["blocchi"]])) {
-					# === file con blocchi (regioni, province, comuni, metadati) ===
-					if(metadati$campo[metadati$specie == gruppo()]){ # c'è un solo gruppo specie per file
+					##################################################################
+					# === file con blocchi (regioni, province, comuni, metadati) === #
+					##################################################################
+					if(metadati$specie == gruppo()){ # c'è un solo gruppo specie per file
 					# porto a booleano il campo blocco
 						
 						###### ATTENZIONE AI CAMBI DI SEGNO (indenne vs bloccato) ######
