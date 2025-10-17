@@ -62,7 +62,11 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 	    df_prov_malattie_template <- df_province[, c("COD_UTS", "COD_REG")]
 	    df_comuni_malattie_template <- df_comuni[, c("PRO_COM_T", "COD_UTS", "COD_REG")]
 	    
-	    # caricamento dei dati delle malattie <- indenne si => TRUE
+	    
+	    #############################################################
+	    # caricamento dei dati delle malattie <- indenne si => TRUE #
+	    #############################################################
+	    
 			for(i in 1:length(files_malattie)){
 				file <- files_malattie[i]
 				fogli <- tolower(trimws(openxlsx::getSheetNames(file)))  # fogli effettivi del file
@@ -94,9 +98,10 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 					# === file con blocchi (regioni, province, comuni, metadati) ===
 					if(metadati$campo[metadati$specie == gruppo()]){ # c'è un solo gruppo specie per file
 					# porto a booleano il campo blocco
+						
+						###### ATTENZIONE AI CAMBI DI SEGNO (indenne vs bloccato) ######
+						
 					regioni  <- openxlsx::read.xlsx(file, sheet = "regioni")
-					
-					###### ATTENZIONE AI CAMBI DI SEGNO ######
 					regioni <- regioni %>%
 						mutate(across(starts_with("blocco"),
 													~ ifelse(is.na(.x), TRUE, !(tolower(trimws(.x)) %in% c("s", "si", "1", "t", "true")))))
