@@ -55,15 +55,18 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 	    df_meta_malattie <- structure(list(campo = character(0), malattia = character(0), 
 	    																	 specie = character(0), riferimento = character(0), data_inizio = structure(numeric(0), class = "Date"), 
 	    																	 data_fine = structure(numeric(0), class = "Date")), row.names = integer(0), class = "data.frame")
-	    # dataframe da popolare con i dati delle malattie nel ciclo for
+	    ###### dataframe da popolare con i dati delle malattie nel ciclo for #####
 	    df_prov_malattie <- df_province[, c("COD_UTS", "COD_REG")]
 	    df_comuni_malattie <- df_comuni[, c("PRO_COM_T", "COD_UTS", "COD_REG")]
 	    
-	    # caricamento dei dati delle malattie <- indenne si => presenza = F
+	    df_prov_malattie_template <- df_province[, c("COD_UTS", "COD_REG")]
+	    df_comuni_malattie_template <- df_comuni[, c("PRO_COM_T", "COD_UTS", "COD_REG")]
+	    
+	    # caricamento dei dati delle malattie <- indenne si => TRUE
 			for(i in 1:length(files_malattie)){
 				file <- files_malattie[i]
 				fogli <- tolower(trimws(openxlsx::getSheetNames(file)))  # fogli effettivi del file
-				# il foglio metadati c'è sempre e mi serve dopo
+				#### il foglio metadati c'è sempre e mi serve dopo ####
 				metadati <- readxl::read_excel(file, sheet = "metadati", col_types = meta_col_types)
 				
 				if (setequal(fogli, tipi_files_malattie_fogli[["province_indenni"]])) {
@@ -71,23 +74,101 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 					provinceind <- openxlsx::read.xlsx(file, sheet = "province")
 					# (aggiunge con join al dataframe df_province le colonne indicate in metadati$campo
 					message("File ", basename(file), " riconosciuto come 'province_indenni'")
+					provinceind <- provinceind %>%
+						mutate(across(starts_with("ind_"),
+													~ ifelse(is.na(.x), NA, tolower(trimws(.x)) %in% c("s", "si", "1", "t", "true"))))
+
 					df_prov_malattie <-
-						merge(df_prov_malattie, provinceind[,c( "COD_UTS_FI", metadati$campo[metadati$specie == gruppo()])], 
-								by.y = "COD_UTS_DT_FI",
-								by.x = "COD_UTS",
+						merge(df_prov_malattie, provinceind[,c( "COD_UTS", metadati$campo[metadati$specie == gruppo()])], 
+								by = "COD_UTS",
 								all.x = TRUE, 
 								all.y = FALSE)
 					
-					
-					
+					df_comuni_malattie <-
+						merge(df_comuni_malattie, provinceind[,c( "COD_UTS", metadati$campo[metadati$specie == gruppo()])], 
+								by = "COD_UTS",
+								all.x = TRUE, 
+								all.y = FALSE)
+
 				} else if (setequal(fogli, tipi_files_malattie_fogli[["blocchi"]])) {
 					# === file con blocchi (regioni, province, comuni, metadati) ===
+					if(metadati$campo[metadati$specie == gruppo()]){ # c'è un solo gruppo specie per file
+					# porto a booleano il campo blocco
 					regioni  <- openxlsx::read.xlsx(file, sheet = "regioni")
+					
+					###### ATTENZIONE AI CAMBI DI SEGNO ######
+					regioni <- regioni %>%
+						mutate(across(starts_with("blocco"),
+													~ ifelse(is.na(.x), TRUE, !(tolower(trimws(.x)) %in% c("s", "si", "1", "t", "true")))))
+					
 					province <- openxlsx::read.xlsx(file, sheet = "province")
+					province <- province %>%
+						mutate(across(starts_with("blocco"),
+													~ ifelse(is.na(.x), TRUE, !(tolower(trimws(.x)) %in% c("s", "si", "1", "t", "true")))))
+					
 					comuni   <- openxlsx::read.xlsx(file, sheet = "comuni")
-					metadati <- openxlsx::read.xlsx(file, sheet = "metadati")
+					comuni <- comuni %>%
+						mutate(across(starts_with("blocco"),
+													~ ifelse(is.na(.x), TRUE, !(tolower(trimws(.x)) %in% c("s", "si", "1", "t", "true")))))
+				
+					# riporto tutto a livello di df_comuni_malattie e df_prov_malattie:
+					# comuni:
+					# se regione = FALSE -> tutti i comuni di quella regione sono bloccati
+					# se provincia = FALSE -> tutti i comuni di quella provincia sono bloccati
+					# se comune = FALSE -> quel comune è bloccato
+					
+					df_comuni_malattie_temp <- df_comuni_malattie_template
+					df_comuni_malattie_temp <- merge(df_comuni_malattie_temp, 
+																			comuni[, c("PRO_COM_T", "blocco")],
+																			by = "PRO_COM_T",
+																			all.x = TRUE,
+																			all.y = FALSE)
+					df_comuni_malattie_temp <- merge(df_comuni_malattie_temp,
+																			province[, c("COD_UTS", "blocco")],
+																			by = "COD_UTS",
+																			all.x = TRUE,
+																			all.y = FALSE,
+																			suffixes = c("_comune", "_provincia"))
+					df_comuni_malattie_temp <- merge(df_comuni_malattie_temp,
+																			regioni[, c("COD_REG", "blocco")],
+																			by = "COD_REG",
+																			by.y = "COD_REG",
+																			all.x = TRUE,
+																			all.y = FALSE,
+																			suffixes = c("", "_regione")
+																			)
+					
+					df_comuni_malattie_temp[, metadati$campo] <- 	with(df_comuni_malattie_temp,
+																														 (blocco == FALSE) |
+																														 	(blocco_provincia == FALSE) |
+																														 	(blocco_comune == FALSE)
+																														 )
+					df_comuni_malattie <- merge(df_comuni_malattie,
+																			df_comuni_malattie_temp[, c("PRO_COM_T", metadati$campo)],
+																			by = "PRO_COM_T",
+																			all.x = TRUE,
+																			all.y = FALSE)
+
+					
+					
+					# province:
+					# se regione = FALSE -> tutte le province di quella regione sono bloccate
+					# se provincia = FALSE -> quella provincia è bloccata
+					# se anche solo un comune della provincia = FALSE -> quella provincia è bloccata
+					
+					# ricavo il blocco delle province dai comuni (df_comuni_malattie_temp[, c("COD_UTS", metadati$campo)])
+					df_prov_malattie_temp  <- df_comuni_malattie_temp[, c("COD_UTS", metadati$campo)] %>%
+						group_by(COD_UTS) %>%
+						summarise(blocco_comuni = all(!!sym(metadati$campo))) # se tutti i comuni sono TRUE -> TRUE
+					
+					#BUG spariscono due province (roma e venezia) che ottengono un valore NA -> controllare nel file originario/template se ci sono quelle le province
+
+					
+					}
+					
+
 					# (accoda ai dataframe corrispondenti)
-					message("File ", basename(file), " riconosciuto come 'blocchi'")
+
 					
 				} else {
 					# === file non riconosciuto ===
