@@ -6,12 +6,12 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 		reactive({                                             # valore reattivo restituito
 			req(animali())                                 # richiede che i dati siano presenti
 			req(gruppo())                                  # richiede che il gruppo sia definito
-						
+			
+		# per testare le funzioni con file di esempio, fornisce ambiente con bovini (animali() e gruppo())
+		# source("tests/test.R")	
+			
 		dati <- animali()
-		
-		# per testare le funzioni con file di esempio
-		# source("tests/test.R")
-		
+
 			# importazione dati statici -----------------------
 			## tabelle geografiche ------
 			# "df_comuni.csv" "df_prefissi_stab.csv" "df_province.csv" "df_regioni.csv" "df_stati_iso3166.csv" (UTF8)
