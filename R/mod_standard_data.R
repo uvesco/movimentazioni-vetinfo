@@ -55,15 +55,28 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 	    df_meta_malattie <- structure(list(campo = character(0), malattia = character(0), 
 	    																	 specie = character(0), riferimento = character(0), data_inizio = structure(numeric(0), class = "Date"), 
 	    																	 data_fine = structure(numeric(0), class = "Date")), row.names = integer(0), class = "data.frame")
+	    # dataframe da popolare con i dati delle malattie nel ciclo for
+	    df_prov_malattie <- df_province[, c("COD_UTS", "COD_REG")]
+	    df_comuni_malattie <- df_comuni[, c("PRO_COM_T", "COD_UTS", "COD_REG")]
 	    
+	    # caricamento dei dati delle malattie <- indenne si => presenza = F
 			for(i in 1:length(files_malattie)){
 				file <- files_malattie[i]
 				fogli <- tolower(trimws(openxlsx::getSheetNames(file)))  # fogli effettivi del file
+				# il foglio metadati c'è sempre e mi serve dopo
+				metadati <- readxl::read_excel(file, sheet = "metadati", col_types = meta_col_types)
 				
 				if (setequal(fogli, tipi_files_malattie_fogli[["province_indenni"]])) {
 					# === file con province + metadati ===
 					provinceind <- openxlsx::read.xlsx(file, sheet = "province")
-					
+					# (aggiunge con join al dataframe df_province le colonne indicate in metadati$campo
+					message("File ", basename(file), " riconosciuto come 'province_indenni'")
+					df_prov_malattie <-
+						merge(df_prov_malattie, provinceind[,c( "COD_UTS_FI", metadati$campo[metadati$specie == gruppo()])], 
+								by.y = "COD_UTS_DT_FI",
+								by.x = "COD_UTS",
+								all.x = TRUE, 
+								all.y = FALSE)
 					
 					
 					
@@ -82,7 +95,7 @@ mod_standardize_server <- function(id, animali, gruppo) {               # defini
 					print(fogli)
 				}
 				
-				metadati <- readxl::read_excel(file, sheet = "metadati", col_types = meta_col_types)
+				
 				
 				
 				
