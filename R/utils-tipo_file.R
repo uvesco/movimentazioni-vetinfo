@@ -1,4 +1,4 @@
-# script per determinare il tipo di file                               # descrizione del file
+# script per determinare il tipo di file (differenti tipi per differenti specie)
 
 determinare_gruppo <- function(animali, df_specie) {                   # funzione che determina il gruppo specie
         # caso in cui il file sia vuoto
