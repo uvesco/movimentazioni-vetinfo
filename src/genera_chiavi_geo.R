@@ -40,8 +40,8 @@ df_prov_val_reg <- unique(df_comuni[, c("COD_RIP", "COD_REG", "COD_PROV", "COD_U
 	# endpoint
 	url_304 <- paste0("https://situas-servizi.istat.it/publish/reportspooljson?",
 										"pfun=304&pdatada=", data_da, "&pdataa=", data_a)
-	# url_61  <- paste0("https://situas-servizi.istat.it/publish/reportspooljson?",
-	# 									"pfun=61&pdata=", data_a)
+	url_61  <- paste0("https://situas-servizi.istat.it/publish/reportspooljson?",
+										"pfun=61&pdata=", data_a)
 	# url_129 <- paste0("https://situas-servizi.istat.it/publish/reportspooljson?",
 	# 									"pfun=129&pdata=", data_da)
 	
@@ -54,11 +54,14 @@ df_prov_val_reg <- unique(df_comuni[, c("COD_RIP", "COD_REG", "COD_PROV", "COD_U
 	url_114 <- "https://situas-servizi.istat.it/publish/reportspooljson?pfun=114&pdatada=17/03/1861&pdataa=12/10/2025"
 	# url_105 <- "https://situas-servizi.istat.it/publish/reportspooljson?pfun=105&pdatada=17/03/1861&pdataa=12/10/2025"
 	url_104 <- paste0("https://situas-servizi.istat.it/publish/reportspooljson?pfun=104&pdatada=17/03/1861&pdataa=", data_a)
+	url_105 <- paste0("https://situas-servizi.istat.it/publish/reportspooljson?pfun=105&pdatada=01/01/2025&pdataa=", data_a)
+
 										
 	
+	df_trans_comuni_2025 <- fromJSON(url_105, simplifyDataFrame = TRUE)$resultset  # storico -> attuale 2025
 	df_trans <- fromJSON(url_304, simplifyDataFrame = TRUE)$resultset  # storico -> attuale
 	# df_trans2 <- fromJSON(url_105, simplifyDataFrame = TRUE)$resultset  # storico -> attuale TEST
-	# df_now   <- fromJSON(url_61, simplifyDataFrame = TRUE)$resultset    # anagrafica comuni/province alla data_a
+	df_comuni_now   <- fromJSON(url_61, simplifyDataFrame = TRUE)$resultset    # anagrafica comuni/province alla data_a
 	# df_var   <- fromJSON(url_129, simplifyDataFrame = TRUE)$resultset   # variazioni (per passaggi di provincia)
 	df_prov  <- fromJSON(url_113, simplifyDataFrame = TRUE)$resultset    # province/UTS con SIGLE (storiche) + validità
 	# df_prov_tutte <- fromJSON(url_104, simplifyDataFrame = TRUE)$resultset    # province/UTS con SIGLE (storiche) + validità

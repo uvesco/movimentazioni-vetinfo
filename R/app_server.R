@@ -5,7 +5,7 @@ app_server <- function(input, output, session) {                               #
         animali <- mod_upload_movimentazioni_server("upload_mov")           # reactive del modulo di upload
 
         # dati_statici
-        df_specie <- read.csv("data_static/specie.csv", stringsAsFactors = FALSE)  # tabella specie statiche
+        df_specie <- read.csv("data_static/decodifiche/specie.csv", stringsAsFactors = FALSE)  # tabella specie statiche
 
 
         gruppo <- reactive({                                                  # determina il gruppo di specie
@@ -14,12 +14,16 @@ app_server <- function(input, output, session) {                               #
                 determinare_gruppo(df, df_specie)                            # applica la funzione di classificazione
         })
 
-        file_check <- mod_file_check_server("file_check", animali, gruppo)  # verifica struttura del file
+        file_check <- mod_file_check_server("file_check", animali, gruppo)  # verifica struttura del file (colonne)
 
-        st_import <- mod_standardize_server("df_standard", animali, gruppo)
+        # genenera il data.frame standardizzato delle province con le malattie significative per gruppo di malattie (dal file mod_standard_data.R) importando tutti i files che sono caricati nella cartella
+        #2do: aggiungere il caricamento manuale di files extra da parte dell'utente
+        st_import <- mod_standardize_geo("df_standard", gruppo)
         
+        
+        
+        # Gestione tab dinamici --------------------------------              # sezione di gestione tab dinamici
         # crea due nuovi tab in caso animali() != "vuoto" e non sia NULL
-
         tabs_inserite <- reactiveVal(FALSE)                                  # memorizza se i tab sono stati aggiunti
 
         observe({                                                            # osserva cambiamenti nei dati
