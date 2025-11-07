@@ -5,6 +5,8 @@ STATIC_SPECIE <- read.csv(
   stringsAsFactors = FALSE
 )
 
+gruppi_specie <- unique(STATIC_SPECIE$GRUPPO)
+
 # importazione motivi di ingresso
 STATIC_MOTIVI_INGRESSO <- read.csv(
   file = "data_static/decodifiche/motivi_ingresso.csv",
