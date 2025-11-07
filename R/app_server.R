@@ -5,7 +5,7 @@ app_server <- function(input, output, session) {                               #
         animali <- mod_upload_movimentazioni_server("upload_mov")           # reactive del modulo di upload
 
         # dati_statici
-        df_specie <- read.csv("data_static/decodifiche/specie.csv", stringsAsFactors = FALSE)  # tabella specie statiche
+        df_specie <- STATIC_SPECIE                                            # tabella specie statiche
 
 
         gruppo <- reactive({                                                  # determina il gruppo di specie
