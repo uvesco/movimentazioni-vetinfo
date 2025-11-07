@@ -1,7 +1,7 @@
 # i nomi delle colonne non richiamati in mod_file_check.R per cui il nome del file
 # deve essere in ordine alfabetico prima di mod_file_check.R
 
-# colonne input ovicaprini
+# colonne originali input ovicaprini
 
 col_ovicaprini <- c("ROWNUM", "REGIONE", "CODICE ASL", "ASL DENOMINAZIONE",
 										"AZIENDA CODICE", "CODICE FISCALE", "SPECIE", "PROV",
@@ -9,7 +9,7 @@ col_ovicaprini <- c("ROWNUM", "REGIONE", "CODICE ASL", "ASL DENOMINAZIONE",
 										"CAPO CODICE ELETTRONICO", "AZI PROVENIENZA",
 										"AZI REGIONE PROVENIENZA", "AZI ASL CODICE PROVENIENZA")
 
-# colonne input bovini
+# colonne originali input bovini
 
 col_bovini     <- c("REGIONE", "CODICE ASL", "DENOMINAZIONE ASL", "CODICE AZIENDA",
 										"CODICE FISCALE", "SPECIE", "PROV", "COMUNE", "MOTIVO INGRESSO",
@@ -19,7 +19,7 @@ col_bovini     <- c("REGIONE", "CODICE ASL", "DENOMINAZIONE ASL", "CODICE AZIEND
 										"REGIONE AZ. PROVENIENZA", "ASL AZ. PROVENIENZA")
 
 # colonne standard in cui trasformare i dataframes
-
+# nomi colonne da applicare a un file di gruppo specie bovini
 col_standard_bovini   <- c(
 	"dest_regione_denom",
 	"dest_asl_cod",
@@ -43,7 +43,7 @@ col_standard_bovini   <- c(
 	"orig_regione_cod",
 	"orig_asl_cod"
 )
-
+# nomi colonne da applicare a un file di gruppo specie ovicaprini
 col_standard_ovicaprini <- c(
 	"num_riga",
 	"dest_regione_denom",
@@ -63,6 +63,7 @@ col_standard_ovicaprini <- c(
 	"orig_asl_cod"
 )
 
+# colonne standard da applicare a tutti i gruppi di specie
 col_standard <- c(
 	"dest_regione_denom",
 	"dest_asl_cod",
@@ -79,4 +80,10 @@ col_standard <- c(
 	"orig_stabilimento_cod",
 	"orig_regione_cod",
 	"orig_asl_cod"
+)
+
+# nomi dei fogli che distinguono l'approccio provincia indenne dall'approccio a blocchi
+tipi_files_malattie_fogli <- list(
+	province_indenni = c("province", "metadati"),
+	blocchi = c("regioni", "province", "comuni", "metadati")
 )

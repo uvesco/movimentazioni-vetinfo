@@ -65,10 +65,7 @@ mod_standardize_geo <- function(id, gruppo) {
 																	 pattern = "\\.xlsx$",
 																	 full.names = TRUE)
 			
-			tipi_files_malattie_fogli <- list(
-				province_indenni = c("province", "metadati"),
-				blocchi = c("regioni", "province", "comuni", "metadati")
-			)
+
 			# tipi di campi dei files metadati
 			meta_col_types  <- c("text", "text", "text", "text", "date", "date")
 			df_meta_malattie <- structure(
