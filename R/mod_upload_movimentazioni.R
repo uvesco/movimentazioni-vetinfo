@@ -59,6 +59,21 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                 gruppo_colonne <- reactiveVal(NULL)                       # variabile reattiva per il gruppo determinato
 
                 standardize_movimentazioni <- function(df) {              # standardizza colonne e determina il gruppo
+                        if (is.null(df) || ncol(df) == 0) {
+                                stop("Il file caricato è vuoto e non può essere elaborato.")
+                        }
+
+                        col_names <- colnames(df)
+                        if (is.null(col_names) || length(col_names) == 0) {
+                                stop("Il file caricato non contiene intestazioni di colonna.")
+                        }
+
+                        col_names_trim <- trimws(as.character(col_names))
+                        if (all(is.na(col_names_trim)) || all(col_names_trim == "") ||
+                                all(grepl("^\\.\\.\\.[0-9]+$", col_names_trim))) {
+                                stop("Il file caricato non contiene intestazioni di colonna valide.")
+                        }
+
                         gruppo_match <- NULL                              # inizializza il gruppo corrispondente
 
                         for (g in names(col_orig_gruppi)) {               # verifica a quale gruppo appartengono le colonne
