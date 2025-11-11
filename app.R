@@ -6,6 +6,9 @@ library(dplyr)                               # pacchetto per la manipolazione de
 library(bsicons)
 library(DT)
 
+# esegue il sourcing dei file necessari
+source("global.R")                             # variabili globali e funzioni ausiliarie")
+
 # importa le definizioni di interfaccia e server
 source("R/app_ui.R")                        # definizione dell'interfaccia
 source("R/app_server.R")                    # logica del server

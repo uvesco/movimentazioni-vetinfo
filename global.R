@@ -21,6 +21,6 @@ STATIC_PROVINCE <- read.csv(
 
 # importazione prefissi stabilimenti
 STATIC_CODICI_STABILIMENTO <- read.csv(
-  file = "data_static/df_prefissi_stab.csv",
+  file = "data_static/geo/df_prefissi_stab.csv",
   stringsAsFactors = FALSE
 )

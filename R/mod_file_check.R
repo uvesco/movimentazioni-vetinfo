@@ -7,16 +7,10 @@ mod_file_check_server <- function(id, animali, gruppo) {               # definiz
 			req(animali())                                 # richiede che i dati siano presenti
 			req(gruppo())                                  # richiede che il gruppo sia definito
 			
-			cols_attuali <- colnames(animali())            # colonne presenti nel file
-			
-			cols_attese <- switch(                         # colonne attese in base al gruppo
-				gruppo(),
-				ovicaprini = col_ovicaprini,
-				bovini = col_bovini,
-				character(0)                           # default se gruppo non previsto
-			)
-			
-			identical(cols_attuali, cols_attese) &&        # verifica corrispondenza colonne
+			# verifica che le colonne del dataframe corrispondano a quelle standard per il gruppo
+						identical(colnames(animali()), 
+								col_standard_gruppi[[gruppo()]]
+								) &&        # verifica corrispondenza colonne
 				nrow(animali()) > 0                    # e presenza di almeno una riga
 		})
 	})
