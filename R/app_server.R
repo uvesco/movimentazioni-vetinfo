@@ -2,17 +2,9 @@
 app_server <- function(input, output, session) {                               # funzione server principale
 
         # Importazione dati --------------------------------                 # sezione di importazione
-        animali <- mod_upload_movimentazioni_server("upload_mov")           # reactive del modulo di upload
-
-        # dati_statici
-        df_specie <- STATIC_SPECIE                                            # tabella specie statiche
-
-
-        gruppo <- reactive({                                                  # determina il gruppo di specie
-                req(animali())                                               # assicura che i dati siano presenti
-                df <- animali()                                              # recupera il dataframe caricato
-                determinare_gruppo(df, df_specie)                            # applica la funzione di classificazione
-        })
+        upload <- mod_upload_movimentazioni_server("upload_mov")            # reattivi del modulo di upload
+        animali <- upload$animali                                            # dataframe standardizzato
+        gruppo <- upload$gruppo                                              # gruppo determinato dal file
 
         file_check <- mod_file_check_server("file_check", animali, gruppo)  # verifica struttura del file (colonne)
 
@@ -23,12 +15,13 @@ app_server <- function(input, output, session) {                               #
         
         
         # Gestione tab dinamici --------------------------------              # sezione di gestione tab dinamici
-        # crea due nuovi tab in caso animali() != "vuoto" e non sia NULL
+        # crea due nuovi tab quando sono presenti dati validi
         tabs_inserite <- reactiveVal(FALSE)                                  # memorizza se i tab sono stati aggiunti
 
         observe({                                                            # osserva cambiamenti nei dati
                 req(animali())                                              # esegue solo se dati presenti
-                if (gruppo() != "vuoto" && !tabs_inserite() && file_check() == T) {             # se gruppo valido e tab non ancora inserite
+                req(gruppo())                                               # richiede il gruppo determinato
+                if (nrow(animali()) > 0 && !tabs_inserite() && isTRUE(file_check())) {          # se dati validi e tab non ancora inserite
 
                                 insertTab(                                  # aggiunge tab "Elaborazione"
                                         inputId = "tabs", target = "input", position = "after",
@@ -46,14 +39,17 @@ app_server <- function(input, output, session) {                               #
 
                                 tabs_inserite(TRUE)                         # segna che i tab sono stati inseriti
 
-                } else if (gruppo() == "vuoto" && tabs_inserite()) {      # se file vuoto rimuove le tab aggiunte
+                } else if (nrow(animali()) == 0 && tabs_inserite()) {      # se file vuoto rimuove le tab aggiunte
                         removeTab("tabs", "elaborazione")                # rimuove tab "Elaborazione"
                         removeTab("tabs", "output")                      # rimuove tab "Output"
                         tabs_inserite(FALSE)                                # aggiorna lo stato
                 }
         })
 
-        output$gruppo_tab <- renderText(gruppo())                           # stampa il gruppo nella tab
+        output$gruppo_tab <- renderText({                                   # stampa il gruppo nella tab
+                req(gruppo())                                              # attende il valore del gruppo
+                gruppo()
+        })
         
         # tabella finale completa con possibilità di download in Excel
         output$tabella_output <- DT::renderDT({
@@ -86,10 +82,12 @@ app_server <- function(input, output, session) {                               #
                         "File non ancora caricato"
                 } else {
                         tryCatch({                                         # gestisce eventuali errori
-                                if (gruppo() == "vuoto") {               # file vuoto
-                                        return(paste0("File vuoto: ", colnames(df)[1]))
+                                grp <- gruppo()                            # recupera il gruppo
+                                req(grp)
+                                if (nrow(df) == 0) {                       # file vuoto
+                                        return(paste0("File vuoto per il gruppo ", grp))
                                 } else {                                   # file corretto
-                                        paste("File importato correttamente.")
+                                        paste("File importato correttamente per il gruppo", grp)
                                 }
                         }, error = function(e) {                           # eventuali errori di lettura
                                 paste("Errore nel file:", e$message)
@@ -102,10 +100,13 @@ app_server <- function(input, output, session) {                               #
 
         output$n_animali <- renderUI({                                   # mostra numero di righe caricate
                 df <- animali()                                           # ottiene i dati
-                req(df)                                                   # si assicura che esistano
-                div(bs_icon("info-circle-fill"), em("Informazioni"), br(),
-                "Gruppo specie: ", gruppo(), br(),          # restituisce il conteggio
-                "Numero di animali importati: ", nrow(df))          # restituisce il conteggio
+                grp <- gruppo()                                           # ottiene il gruppo
+                req(df, grp)                                              # si assicura che esistano
+                div(
+                        bs_icon("info-circle-fill"), em("Informazioni"), br(),
+                        "Gruppo specie: ", grp, br(),          # restituisce il conteggio
+                        "Numero di animali importati: ", nrow(df)
+                )          # restituisce il conteggio
         })
         
 
