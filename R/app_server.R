@@ -85,7 +85,7 @@ app_server <- function(input, output, session) {                               #
                                 grp <- gruppo()                            # recupera il gruppo
                                 req(grp)
                                 if (nrow(df) == 0) {                       # file vuoto
-                                        return(paste0("File vuoto per il gruppo ", grp))
+                                        return(paste0("File vuoto (nessun animale movimentato per i parametri selezionati)."))
                                 } else {                                   # file corretto
                                         paste("File importato correttamente per il gruppo", grp)
                                 }
