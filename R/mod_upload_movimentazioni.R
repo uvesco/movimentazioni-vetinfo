@@ -58,8 +58,53 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                 dati <- reactiveVal(NULL)                                 # variabile reattiva per i dati caricati
                 gruppo_colonne <- reactiveVal(NULL)                       # variabile reattiva per il gruppo determinato
 
-                standardize_movimentazioni <- function(df) {              # standardizza colonne e determina il gruppo
+                standardize_movimentazioni <- function(df, filename = NULL) { # standardizza colonne e determina il gruppo
                         gruppo_match <- NULL                              # inizializza il gruppo corrispondente
+
+                        infer_gruppo_da_filename <- function(nome_file) {
+                                if (is.null(nome_file)) return(NULL)
+                                nome_file <- tolower(nome_file)
+                                for (g in names(col_orig_gruppi)) {
+                                        if (grepl(g, nome_file, fixed = TRUE)) {
+                                                return(g)
+                                        }
+                                }
+                                NULL
+                        }
+
+                        is_file_vuoto <- function(x) {
+                                if (nrow(x) == 0 && ncol(x) == 0) {
+                                        return(TRUE)
+                                }
+
+                                messaggio_vuoto <- "non ci sono movimentazioni"
+                                elementi <- c(colnames(x), unlist(x, use.names = FALSE))
+                                elementi <- elementi[!is.na(elementi)]
+
+                                if (length(elementi) == 0) {
+                                        return(FALSE)
+                                }
+
+                                ha_messaggio <- any(grepl(messaggio_vuoto, elementi, ignore.case = TRUE))
+                                nrow(x) <= 1 && ncol(x) <= 1 && ha_messaggio
+                        }
+
+                        if (is_file_vuoto(df)) {
+                                gruppo_match <- infer_gruppo_da_filename(filename)
+
+                                if (is.null(gruppo_match)) {
+                                        stop("File vuoto rilevato ma impossibile determinare il gruppo di specie dal nome del file.")
+                                }
+
+                                colonne_gruppo <- col_standard_gruppi[[gruppo_match]]
+                                df <- as.data.frame(
+                                        structure(
+                                                rep(list(character()), length(colonne_gruppo)),
+                                                names = colonne_gruppo
+                                        ),
+                                        stringsAsFactors = FALSE
+                                )
+                        }
 
                         for (g in names(col_orig_gruppi)) {               # verifica a quale gruppo appartengono le colonne
                                 if (identical(colnames(df), col_orig_gruppi[[g]])) {
@@ -102,7 +147,7 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         withProgress(message = "Lettura file…", value = 0.1, {   # mostra barra di avanzamento
                                 df <- read_mov_xls_or_gz(input$file$datapath, orig_name = input$file$name) # legge il file
                                 incProgress(0.8)                          # aggiorna la progress bar
-                                standardizzato <- standardize_movimentazioni(df) # standardizza dati e gruppo
+                                standardizzato <- standardize_movimentazioni(df, filename = input$file$name) # standardizza dati e gruppo
                                 dati(standardizzato$animali)              # salva i dati standardizzati
                                 gruppo_colonne(standardizzato$gruppo)     # salva il gruppo determinato
                         })
