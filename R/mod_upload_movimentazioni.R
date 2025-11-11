@@ -77,7 +77,6 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                                         return(TRUE)
                                 }
 
-                                messaggio_vuoto <- "non ci sono movimentazioni"
                                 elementi <- c(colnames(x), unlist(x, use.names = FALSE))
                                 elementi <- elementi[!is.na(elementi)]
 
@@ -85,8 +84,27 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                                         return(FALSE)
                                 }
 
-                                ha_messaggio <- any(grepl(messaggio_vuoto, elementi, ignore.case = TRUE))
-                                nrow(x) <= 1 && ncol(x) <= 1 && ha_messaggio
+                                normalizza <- function(v) {
+                                        v <- tolower(trimws(as.character(v)))
+                                        gsub("\\s+", " ", v)
+                                }
+
+                                elementi_norm <- normalizza(elementi)
+
+                                messaggi_vuoti <- c(
+                                        "non ci sono movimentazioni",
+                                        "non ci sono dati disponibili per i parametri selezionati."
+                                )
+
+                                messaggi_norm <- normalizza(messaggi_vuoti)
+
+                                ha_messaggio <- any(vapply(
+                                        messaggi_norm,
+                                        function(msg) any(grepl(msg, elementi_norm, fixed = TRUE)),
+                                        logical(1)
+                                ))
+
+                                (nrow(x) <= 1) && ha_messaggio
                         }
 
                         if (is_file_vuoto(df)) {
