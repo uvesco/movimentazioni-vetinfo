@@ -5,6 +5,7 @@ app_server <- function(input, output, session) {                               #
         upload <- mod_upload_movimentazioni_server("upload_mov")            # reattivi del modulo di upload
         animali <- upload$animali                                            # dataframe standardizzato
         gruppo <- upload$gruppo                                              # gruppo determinato dal file
+        stato_upload <- upload$status                                        # stato del caricamento per i messaggi
 
         file_check <- mod_file_check_server("file_check", animali, gruppo)  # verifica struttura del file (colonne)
 
@@ -77,22 +78,27 @@ app_server <- function(input, output, session) {                               #
         # messaggio sul tipo di file importato
 
         output$tipo_file <- renderText({                                    # messaggio informativo sul file caricato
+                stato <- stato_upload()
+                if (!is.null(stato$message) && stato$type %in% c("error", "empty")) {
+                        return(stato$message)
+                }
+
                 df <- animali()                                            # recupera i dati
                 if (is.null(df)) {                                         # nessun file caricato
-                        "File non ancora caricato"
-                } else {
-                        tryCatch({                                         # gestisce eventuali errori
-                                grp <- gruppo()                            # recupera il gruppo
-                                req(grp)
-                                if (nrow(df) == 0) {                       # file vuoto
-                                        return(paste0("File vuoto (nessun animale movimentato per i parametri selezionati)."))
-                                } else {                                   # file corretto
-                                        paste("File importato correttamente per il gruppo", grp)
-                                }
-                        }, error = function(e) {                           # eventuali errori di lettura
-                                paste("Errore nel file:", e$message)
-                        })
+                        return("File non ancora caricato")
                 }
+
+                tryCatch({                                                 # gestisce eventuali errori
+                        grp <- gruppo()                                    # recupera il gruppo
+                        req(grp)
+                        if (nrow(df) == 0) {                               # file vuoto
+                                return("File vuoto per i parametri selezionati")
+                        } else {                                           # file corretto
+                                paste("File importato correttamente per il gruppo", grp)
+                        }
+                }, error = function(e) {                                   # eventuali errori di lettura
+                        paste("Errore nel file:", e$message)
+                })
         })
 
 

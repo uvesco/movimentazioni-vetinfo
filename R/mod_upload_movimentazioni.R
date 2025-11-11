@@ -57,8 +57,10 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
 
                 dati <- reactiveVal(NULL)                                 # variabile reattiva per i dati caricati
                 gruppo_colonne <- reactiveVal(NULL)                       # variabile reattiva per il gruppo determinato
+                upload_status <- reactiveVal(list(type = "idle", message = NULL)) # stato dell'upload per messaggi persistenti
 
-                notify_upload_issue <- function(msg, type = "error", duration = 8) {
+                notify_upload_issue <- function(msg, type = "error", duration = 8, status_type = "error") {
+                        upload_status(list(type = status_type, message = msg))
                         shiny::showNotification(
                                 msg,
                                 type = type,
@@ -122,11 +124,14 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         df_standard <- df[, col_standard, drop = FALSE]   # mantiene solo le colonne comuni
                         attr(df_standard, "gruppo_specie") <- gruppo_match # memorizza il gruppo determinato
 
+                        upload_status(list(type = "success", message = NULL))
+
                         if (nrow(df_standard) == 0) {
                                 notify_upload_issue(
-                                        "File caricato senza movimentazioni: nessuna riga presente.",
+                                        "File vuoto per i parametri selezionati",
                                         type = "warning",
-                                        duration = 6
+                                        duration = 6,
+                                        status_type = "empty"
                                 )
                         } else if (all(vapply(df_standard, function(col) all(is.na(col)), logical(1)))) {
                                 return(notify_upload_issue(
@@ -144,6 +149,7 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         if (is.null(input$file)) {                        # nessun file selezionato
                                 dati(NULL)
                                 gruppo_colonne(NULL)
+                                upload_status(list(type = "idle", message = NULL))
                                 return()
                         }
 
@@ -165,7 +171,8 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                 # restituisce il data.frame caricato (o NULL) e il gruppo collegato
                 list(
                         animali = reactive(dati()),                      # espone i dati standardizzati
-                        gruppo = reactive(gruppo_colonne())               # espone il gruppo determinato
+                        gruppo = reactive(gruppo_colonne()),              # espone il gruppo determinato
+                        status = reactive(upload_status())                # espone lo stato dell'upload per messaggi
                 )
         })
 }
