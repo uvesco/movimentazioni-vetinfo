@@ -43,12 +43,28 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                                 # leggi: prima read_excel (auto), fallback a read_xls
                                 df <- tryCatch(                           # tenta la lettura del file Excel
                                         readxl::read_excel(tmp_xls),      # lettura automatica
-                                        error = function(e) readxl::read_xls(tmp_xls)  # fallback per vecchi formati
+                                        error = function(e) {
+                                                # Tenta fallback con read_xls per vecchi formati
+                                                tryCatch(
+                                                        readxl::read_xls(tmp_xls),
+                                                        error = function(e2) {
+                                                                # Se entrambi falliscono, solleva errore descrittivo
+                                                                stop("Impossibile leggere il file Excel dal file .gz. Il file potrebbe essere corrotto, non valido o in un formato non supportato.")
+                                                        }
+                                                )
+                                        }
                                 )
                                 return(df)                                # restituisce il dataframe
 
                         } else if (grepl("\\.xls$", nm)) {                 # se il file è un .xls non compresso
-                                return(readxl::read_excel(path))          # lettura diretta del file Excel
+                                df <- tryCatch(                           # tenta la lettura del file Excel
+                                        readxl::read_excel(path),         # lettura automatica
+                                        error = function(e) {
+                                                # Gestisce errori di file corrotti o non validi
+                                                stop("Impossibile leggere il file Excel. Il file potrebbe essere corrotto, non valido o in un formato non supportato.")
+                                        }
+                                )
+                                return(df)                                # restituisce il dataframe
 
                         } else {                                          # formato non riconosciuto
                                 stop("Formato non supportato: usa .xls o .gz")   # errore esplicativo
@@ -193,7 +209,20 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
 
                         req(input$file$datapath)                          # verifica che il percorso esista
                         withProgress(message = "Lettura file…", value = 0.1, {   # mostra barra di avanzamento
-                                df <- read_mov_xls_or_gz(input$file$datapath, orig_name = input$file$name) # legge il file
+                                df <- tryCatch(                           # gestisce errori durante la lettura del file
+                                        read_mov_xls_or_gz(input$file$datapath, orig_name = input$file$name), # legge il file
+                                        error = function(e) {
+                                                notify_upload_issue(e$message)  # mostra messaggio di errore
+                                                NULL                      # restituisce NULL in caso di errore
+                                        }
+                                )
+                                
+                                if (is.null(df)) {                        # se la lettura è fallita
+                                        dati(NULL)
+                                        gruppo_colonne(NULL)
+                                        return()
+                                }
+                                
                                 incProgress(0.8)                          # aggiorna la progress bar
                                 standardizzato <- standardize_movimentazioni(df, filename = input$file$name) # standardizza dati e gruppo
                                 if (is.null(standardizzato)) {
