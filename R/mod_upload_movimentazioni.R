@@ -57,8 +57,39 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
 
                 dati <- reactiveVal(NULL)                                 # variabile reattiva per i dati caricati
                 gruppo_colonne <- reactiveVal(NULL)                       # variabile reattiva per il gruppo determinato
+                upload_status <- reactiveVal(list(type = "idle", message = NULL)) # stato dell'upload per messaggi persistenti
 
+                notify_upload_issue <- function(msg, type = "error", duration = 8, status_type = "error") {
+                        upload_status(list(type = status_type, message = msg))
+                        shiny::showNotification(
+                                msg,
+                                type = type,
+                                duration = duration,
+                                session = session
+                        )
+                        NULL
+                }
+
+<<<<<<< HEAD
                 standardize_movimentazioni <- function(df, filename = NULL) { # standardizza colonne e determina il gruppo
+=======
+                standardize_movimentazioni <- function(df) {              # standardizza colonne e determina il gruppo
+                        if (is.null(df) || ncol(df) == 0) {
+                                stop("Il file caricato è vuoto e non può essere elaborato.")
+                        }
+
+                        col_names <- colnames(df)
+                        if (is.null(col_names) || length(col_names) == 0) {
+                                stop("Il file caricato non contiene intestazioni di colonna.")
+                        }
+
+                        col_names_trim <- trimws(as.character(col_names))
+                        if (all(is.na(col_names_trim)) || all(col_names_trim == "") ||
+                                all(grepl("^\\.\\.\\.[0-9]+$", col_names_trim))) {
+                                stop("Il file caricato non contiene intestazioni di colonna valide.")
+                        }
+
+>>>>>>> origin/codex/fix-error-in-standardize_movimentazioni-ulsbu7
                         gruppo_match <- NULL                              # inizializza il gruppo corrispondente
 
                         infer_gruppo_da_filename <- function(nome_file) {
@@ -114,21 +145,40 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         }
 
                         if (is.null(gruppo_match)) {                      # nessun gruppo riconosciuto
-                                stop("Struttura colonne non riconosciuta per il file caricato.")
+                                return(notify_upload_issue(
+                                        "Struttura colonne non riconosciuta per il file caricato / File vuoto per i parametri selezionati."
+                                ))
                         }
 
                         colnames(df) <- col_standard_gruppi[[gruppo_match]]  # rinomina con i nomi standard del gruppo
 
                         colonne_mancanti <- setdiff(col_standard, colnames(df))  # verifica la presenza di tutte le colonne standard
                         if (length(colonne_mancanti) > 0) {
-                                stop(
-                                        "Colonne standard mancanti nel file caricato: ",
-                                        paste(colonne_mancanti, collapse = ", ")
-                                )
+                                return(notify_upload_issue(
+                                        paste(
+                                                "Colonne standard mancanti nel file caricato:",
+                                                paste(colonne_mancanti, collapse = ", ")
+                                        )
+                                ))
                         }
 
                         df_standard <- df[, col_standard, drop = FALSE]   # mantiene solo le colonne comuni
                         attr(df_standard, "gruppo_specie") <- gruppo_match # memorizza il gruppo determinato
+
+                        upload_status(list(type = "success", message = NULL))
+
+                        if (nrow(df_standard) == 0) {
+                                notify_upload_issue(
+                                        "File vuoto per i parametri selezionati",
+                                        type = "warning",
+                                        duration = 6,
+                                        status_type = "empty"
+                                )
+                        } else if (all(vapply(df_standard, function(col) all(is.na(col)), logical(1)))) {
+                                return(notify_upload_issue(
+                                        "Il file caricato contiene solo valori mancanti."
+                                ))
+                        }
 
                         list(
                                 animali = df_standard,                   # dataframe standardizzato
@@ -140,6 +190,7 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         if (is.null(input$file)) {                        # nessun file selezionato
                                 dati(NULL)
                                 gruppo_colonne(NULL)
+                                upload_status(list(type = "idle", message = NULL))
                                 return()
                         }
 
@@ -147,7 +198,16 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         withProgress(message = "Lettura file…", value = 0.1, {   # mostra barra di avanzamento
                                 df <- read_mov_xls_or_gz(input$file$datapath, orig_name = input$file$name) # legge il file
                                 incProgress(0.8)                          # aggiorna la progress bar
+<<<<<<< HEAD
                                 standardizzato <- standardize_movimentazioni(df, filename = input$file$name) # standardizza dati e gruppo
+=======
+                                standardizzato <- standardize_movimentazioni(df) # standardizza dati e gruppo
+                                if (is.null(standardizzato)) {
+                                        dati(NULL)
+                                        gruppo_colonne(NULL)
+                                        return()
+                                }
+>>>>>>> origin/codex/fix-error-in-standardize_movimentazioni-ulsbu7
                                 dati(standardizzato$animali)              # salva i dati standardizzati
                                 gruppo_colonne(standardizzato$gruppo)     # salva il gruppo determinato
                         })
@@ -156,7 +216,8 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                 # restituisce il data.frame caricato (o NULL) e il gruppo collegato
                 list(
                         animali = reactive(dati()),                      # espone i dati standardizzati
-                        gruppo = reactive(gruppo_colonne())               # espone il gruppo determinato
+                        gruppo = reactive(gruppo_colonne()),              # espone il gruppo determinato
+                        status = reactive(upload_status())                # espone lo stato dell'upload per messaggi
                 )
         })
 }
