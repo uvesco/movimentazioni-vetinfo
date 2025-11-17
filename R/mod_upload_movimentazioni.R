@@ -159,7 +159,7 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
 
                         if (is.null(gruppo_match)) {                      # nessun gruppo riconosciuto
                                 return(notify_upload_issue(
-                                        "Struttura colonne non riconosciuta per il file caricato / File vuoto per i parametri selezionati."
+                                        "File vuoto per i parametri selezionati."
                                 ))
                         }
 
