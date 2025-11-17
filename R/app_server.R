@@ -6,8 +6,7 @@ app_server <- function(input, output, session) {                               #
         animali <- upload$animali                                            # dataframe standardizzato
         gruppo <- upload$gruppo                                              # gruppo determinato dal file
         stato_upload <- upload$status                                        # stato del caricamento per i messaggi
-
-        file_check <- mod_file_check_server("file_check", animali, gruppo)  # verifica struttura del file (colonne)
+        file_check <- upload$file_check                                      # verifica struttura del file (colonne)
 
         # genenera il data.frame standardizzato delle province e dei comuni (riuniti in una lista) con le malattie significative per gruppo di malattie (dal file mod_standard_data.R) importando tutti i files che sono caricati nella cartella
         #2do: aggiungere il caricamento manuale di files extra da parte dell'utente

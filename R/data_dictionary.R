@@ -1,5 +1,5 @@
-# i nomi delle colonne non richiamati in mod_file_check.R per cui il nome del file
-# deve essere in ordine alfabetico prima di mod_file_check.R
+# Nomi delle colonne standard e originali per i diversi gruppi di specie
+# Questo file deve essere caricato prima di altri moduli che usano queste variabili
 
 # colonne originali input ovicaprini
 
