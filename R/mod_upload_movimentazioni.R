@@ -70,10 +70,7 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         NULL
                 }
 
-<<<<<<< HEAD
                 standardize_movimentazioni <- function(df, filename = NULL) { # standardizza colonne e determina il gruppo
-=======
-                standardize_movimentazioni <- function(df) {              # standardizza colonne e determina il gruppo
                         if (is.null(df) || ncol(df) == 0) {
                                 stop("Il file caricato è vuoto e non può essere elaborato.")
                         }
@@ -89,7 +86,7 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                                 stop("Il file caricato non contiene intestazioni di colonna valide.")
                         }
 
->>>>>>> origin/codex/fix-error-in-standardize_movimentazioni-ulsbu7
+
                         gruppo_match <- NULL                              # inizializza il gruppo corrispondente
 
                         infer_gruppo_da_filename <- function(nome_file) {
@@ -198,16 +195,13 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         withProgress(message = "Lettura file…", value = 0.1, {   # mostra barra di avanzamento
                                 df <- read_mov_xls_or_gz(input$file$datapath, orig_name = input$file$name) # legge il file
                                 incProgress(0.8)                          # aggiorna la progress bar
-<<<<<<< HEAD
                                 standardizzato <- standardize_movimentazioni(df, filename = input$file$name) # standardizza dati e gruppo
-=======
-                                standardizzato <- standardize_movimentazioni(df) # standardizza dati e gruppo
                                 if (is.null(standardizzato)) {
                                         dati(NULL)
                                         gruppo_colonne(NULL)
                                         return()
                                 }
->>>>>>> origin/codex/fix-error-in-standardize_movimentazioni-ulsbu7
+
                                 dati(standardizzato$animali)              # salva i dati standardizzati
                                 gruppo_colonne(standardizzato$gruppo)     # salva il gruppo determinato
                         })
