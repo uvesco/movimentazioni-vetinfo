@@ -260,9 +260,9 @@ mod_import_malattie <- function(id, gruppo) {
 								"Attenzione: valori NA riscontrati nel file ",
 								basename(file),
 								" per la malattia ",
-								metadati$malattia,
+								df_meta_malattie$malattia[i],
 								" e il gruppo ",
-								metadati$specie
+								df_meta_malattie$specie[i]
 							)
 						}
 						
@@ -301,14 +301,14 @@ mod_import_malattie <- function(id, gruppo) {
 							all.x = TRUE,
 							all.y = FALSE
 						)
-						if (any(is.na(df_province_malattie[, campo_malattia]))) {
+						if (any(is.na(malattie[[df_meta_malattie$specie[i]]][["province"]][, campo_malattia]))) {
 							stop(
 								"Attenzione: valori NA riscontrati nel file ",
 								basename(file),
 								" per la malattia ",
-								metadati$malattia,
+								df_meta_malattie$malattia[i],
 								" e il gruppo ",
-								metadati$specie
+								df_meta_malattie$specie[i]
 							)
 							#######################################################################################
 							# la lista malattie è l'output finale con tutte le malattie a livello di provincia #
@@ -327,8 +327,8 @@ mod_import_malattie <- function(id, gruppo) {
 				}
 				
 		}
-			# restituisco la lista malattie
-			malattie
+			# # restituisco la lista malattie
+			# malattie
 		)
 	})
 }
