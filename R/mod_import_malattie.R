@@ -1,9 +1,10 @@
 # per testare le funzioni con file di esempio, fornisce ambiente con bovini (animali() e gruppo())
 # source("tests/test.R")
 
-# modulo per standardizzare le colonne e collegare tutti i dati geografici e delle malattie
+# modulo per importare i dati geografici delle malattie
+#2do: importare altre malattie dagli utenti
 
-mod_standardize_geo <- function(id, gruppo) {
+mod_import_malattie <- function(id, gruppo) {
 	# definizione del server del modulo
 	moduleServer(id, function(input, output, session) {
 		# modulo server vero e proprio
