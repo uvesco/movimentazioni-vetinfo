@@ -327,8 +327,8 @@ mod_import_malattie <- function(id, gruppo) {
 				}
 				
 		}
-			# # restituisco la lista malattie
-			# malattie
+			# restituisco la lista malattie
+			malattie
 		)
 	})
 }
