@@ -236,11 +236,22 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         })
                 }, ignoreInit = TRUE)                                     # esegue solo dopo il primo caricamento
 
+                # verifica validità del file (colonne e righe)
+                file_check <- reactive({
+                        req(dati())                                      # richiede che i dati siano presenti
+                        req(gruppo_colonne())                            # richiede che il gruppo sia definito
+                        
+                        # verifica che le colonne del dataframe corrispondano a quelle standard
+                        identical(colnames(dati()), col_standard) &&     # verifica corrispondenza colonne
+                                nrow(dati()) > 0                         # e presenza di almeno una riga
+                })
+                
                 # restituisce il data.frame caricato (o NULL) e il gruppo collegato
                 list(
                         animali = reactive(dati()),                      # espone i dati standardizzati
                         gruppo = reactive(gruppo_colonne()),              # espone il gruppo determinato
-                        status = reactive(upload_status())                # espone lo stato dell'upload per messaggi
+                        status = reactive(upload_status()),               # espone lo stato dell'upload per messaggi
+                        file_check = file_check                          # espone la verifica validità file
                 )
         })
 }
