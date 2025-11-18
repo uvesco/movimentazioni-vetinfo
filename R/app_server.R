@@ -10,7 +10,8 @@ app_server <- function(input, output, session) {                               #
 
         # genenera il data.frame standardizzato delle province e dei comuni (riuniti in una lista) con le malattie significative per gruppo di malattie (dal file mod_standard_data.R) importando tutti i files che sono caricati nella cartella
         #2do: aggiungere il caricamento manuale di files extra da parte dell'utente
-        st_import <- mod_import_malattie("df_standard", gruppo)
+        malattie <- mod_import_malattie("df_standard", gruppo)
+        st_import <- malattie
         
         
         
@@ -114,6 +115,14 @@ app_server <- function(input, output, session) {                               #
                 )          # restituisce il conteggio
         })
         
+        # mostra le malattie importate
+        output$malattie_importate <- renderTable({
+                df_malattie <- malattie()[["metadati"]]                  # ottiene i dati delle malattie
+                grp <- gruppo()
+                req(df_malattie, grp)
+                df_malattie <- df_malattie[df_malattie$specie == grp, c("malattia", "riferimento", "data_inizio", "data_fine")]  # filtra per il gruppo corrente
+                df_malattie
+        })
 
         
 }
