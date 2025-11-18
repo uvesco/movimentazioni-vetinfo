@@ -107,11 +107,35 @@ app_server <- function(input, output, session) {                               #
                 df <- animali()                                           # ottiene i dati
                 grp <- gruppo()                                           # ottiene il gruppo
                 req(df, grp)                                              # si assicura che esistano
-                div(
+                
+                # ottieni le malattie per il gruppo
+                malattie_data <- st_import()
+                malattie_list <- NULL
+                
+                if (!is.null(malattie_data) && !is.null(malattie_data$metadati)) {
+                        # filtra i metadati per il gruppo corrente
+                        meta_gruppo <- malattie_data$metadati[malattie_data$metadati$specie == grp, ]
+                        if (nrow(meta_gruppo) > 0) {
+                                malattie_list <- unique(meta_gruppo$malattia)
+                        }
+                }
+                
+                # costruisci l'output
+                ui_elements <- list(
                         bs_icon("info-circle-fill"), em("Informazioni"), br(),
-                        "Gruppo specie: ", grp, br(),          # restituisce il conteggio
-                        "Numero di animali importati: ", nrow(df)
-                )          # restituisce il conteggio
+                        "Gruppo specie: ", grp, br(),
+                        "Numero di animali importati: ", nrow(df), br()
+                )
+                
+                # aggiungi le malattie se disponibili
+                if (!is.null(malattie_list) && length(malattie_list) > 0) {
+                        ui_elements <- c(
+                                ui_elements,
+                                list("Malattie: ", paste(malattie_list, collapse = ", "))
+                        )
+                }
+                
+                do.call(div, ui_elements)
         })
         
 
