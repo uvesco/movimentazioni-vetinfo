@@ -18,6 +18,7 @@ app_ui <- function() {
 				mainPanel(
 					verbatimTextOutput("tipo_file"),
 					uiOutput("n_animali"),
+					h4("Malattie"),
 					tableOutput("malattie_importate")
 				)
 			)

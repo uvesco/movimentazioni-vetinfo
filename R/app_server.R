@@ -123,6 +123,7 @@ app_server <- function(input, output, session) {                               #
                 req(df, grp)                                              # si assicura che esistano
                 div(
                         bs_icon("info-circle-fill"), em("Informazioni"), br(),
+                        strong("Animali movimentati"), br(),
                         "Gruppo specie: ", grp, br(),          # restituisce il conteggio
                         "Numero di animali importati: ", nrow(df)
                 )          # restituisce il conteggio
@@ -142,6 +143,12 @@ app_server <- function(input, output, session) {                               #
                         
                         # filtra per il gruppo corrente
                         df_filtrato <- df_malattie[df_malattie$specie == grp, c("malattia", "riferimento", "data_inizio", "data_fine")]
+                        
+                        # formatta le date in formato dd/mm/yyyy
+                        if (nrow(df_filtrato) > 0) {
+                                df_filtrato$data_inizio <- format(df_filtrato$data_inizio, "%d/%m/%Y")
+                                df_filtrato$data_fine <- format(df_filtrato$data_fine, "%d/%m/%Y")
+                        }
                         
                         df_filtrato                                      # ritorna la tabella (anche se vuota)
                 }, error = function(e) {
