@@ -54,24 +54,37 @@ app_server <- function(input, output, session) {                               #
         
         # tabella finale completa con possibilità di download in Excel
         output$tabella_output <- DT::renderDT({
-                df <- st_import()
-                req(df)
-                DT::datatable(
-                        df,
-                        extensions = "Buttons",
-                        options = list(
-                                dom = "Bfrtip",
-                                buttons = list(list(
-                                        extend = "excel",
-                                        filename = paste0("movimentazioni_", format(Sys.Date(), "%Y%m%d"))
-                                )),
-                                pageLength = 8,
-                                lengthMenu = c(8, 15, 25),
-                                scrollX = TRUE
-                        ),
-                        filter = "top",
-                        rownames = FALSE
-                )
+                req(gruppo())                                            # richiede che il gruppo sia definito
+                
+                tryCatch({
+                        malattie_data <- st_import()                     # ottiene i dati delle malattie
+                        req(malattie_data)                               # verifica che ci siano dati
+                        
+                        grp <- gruppo()                                  # ottiene il gruppo corrente
+                        
+                        # estrae i dati delle province per il gruppo corrente
+                        df <- malattie_data[[grp]][["province"]]
+                        req(df)                                          # verifica che il dataframe esista
+                        
+                        DT::datatable(
+                                df,
+                                extensions = "Buttons",
+                                options = list(
+                                        dom = "Bfrtip",
+                                        buttons = list(list(
+                                                extend = "excel",
+                                                filename = paste0("movimentazioni_", format(Sys.Date(), "%Y%m%d"))
+                                        )),
+                                        pageLength = 8,
+                                        lengthMenu = c(8, 15, 25),
+                                        scrollX = TRUE
+                                ),
+                                filter = "top",
+                                rownames = FALSE
+                        )
+                }, error = function(e) {
+                        NULL                                             # ritorna NULL in caso di errore
+                })
         }, server = FALSE)
         
 
@@ -117,11 +130,25 @@ app_server <- function(input, output, session) {                               #
         
         # mostra le malattie importate
         output$malattie_importate <- renderTable({
-                df_malattie <- malattie()[["metadati"]]                  # ottiene i dati delle malattie
-                grp <- gruppo()
-                req(df_malattie, grp)
-                df_malattie <- df_malattie[df_malattie$specie == grp, c("malattia", "riferimento", "data_inizio", "data_fine")]  # filtra per il gruppo corrente
-                df_malattie
+                req(gruppo())                                            # richiede che il gruppo sia definito
+                
+                tryCatch({
+                        malattie_data <- malattie()                      # ottiene i dati delle malattie
+                        req(malattie_data)                               # verifica che ci siano dati
+                        
+                        df_malattie <- malattie_data[["metadati"]]       # estrae i metadati
+                        req(df_malattie)                                 # verifica che i metadati esistano
+                        
+                        grp <- gruppo()                                  # ottiene il gruppo corrente
+                        
+                        # filtra per il gruppo corrente
+                        df_filtrato <- df_malattie[df_malattie$specie == grp, c("malattia", "riferimento", "data_inizio", "data_fine")]
+                        
+                        req(nrow(df_filtrato) > 0)                       # verifica che ci siano risultati
+                        df_filtrato
+                }, error = function(e) {
+                        NULL                                             # ritorna NULL in caso di errore
+                })
         })
 
         
