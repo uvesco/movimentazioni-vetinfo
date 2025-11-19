@@ -24,3 +24,9 @@ STATIC_CODICI_STABILIMENTO <- read.csv(
   file = "data_static/geo/df_prefissi_stab.csv",
   stringsAsFactors = FALSE
 )
+
+# importazione codici iso stati
+STATIC_ISO_STATI <- read.csv(
+  file = "data_static/geo/df_stati_iso3166.csv",
+  stringsAsFactors = FALSE
+)
