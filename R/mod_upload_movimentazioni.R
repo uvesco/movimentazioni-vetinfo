@@ -209,11 +209,32 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         }
                         
                         # 1. Merge con STATIC_MOTIVI_INGRESSO per derivare provenienza nazionale/estera
-                        # Rimuovi il campo Codice che non serve
-                        motivi_lookup <- STATIC_MOTIVI_INGRESSO[, c("Descrizione", "prov_italia")]
-                        df_animali <- merge(df_animali, motivi_lookup, 
-                                          by.x = "ingresso_motivo", by.y = "Descrizione", 
+                        # Il campo ingresso_motivo può contenere il codice o la descrizione
+                        # Prova prima merge con Codice, poi con Descrizione
+                        motivi_lookup_cod <- STATIC_MOTIVI_INGRESSO[, c("Codice", "prov_italia")]
+                        motivi_lookup_desc <- STATIC_MOTIVI_INGRESSO[, c("Descrizione", "prov_italia")]
+                        
+                        # Prova merge con Codice
+                        df_animali <- merge(df_animali, motivi_lookup_cod, 
+                                          by.x = "ingresso_motivo", by.y = "Codice", 
                                           all.x = TRUE, sort = FALSE)
+                        
+                        # Se prov_italia è tutto NA, prova merge con Descrizione
+                        if (all(is.na(df_animali$prov_italia))) {
+                                df_animali$prov_italia <- NULL  # rimuovi colonna NA
+                                df_animali <- merge(df_animali, motivi_lookup_desc, 
+                                              by.x = "ingresso_motivo", by.y = "Descrizione", 
+                                              all.x = TRUE, sort = FALSE)
+                        }
+                        
+                        # Se ancora NA, determina da orig_stabilimento_cod non NA
+                        # (se c'è un codice stabilimento italiano, proviene dall'Italia)
+                        if (any(is.na(df_animali$prov_italia))) {
+                                has_orig_stab <- !is.na(df_animali$orig_stabilimento_cod) & 
+                                               df_animali$orig_stabilimento_cod != ""
+                                df_animali$prov_italia[is.na(df_animali$prov_italia) & has_orig_stab] <- TRUE
+                                df_animali$prov_italia[is.na(df_animali$prov_italia)] <- FALSE
+                        }
                         
                         # 2. Estrai primi 5 caratteri da orig_stabilimento_cod e merge con df_stab
                         # Solo per animali importati dall'Italia (prov_italia == TRUE)
