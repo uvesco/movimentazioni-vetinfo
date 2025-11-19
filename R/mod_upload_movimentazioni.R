@@ -216,6 +216,7 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                                           all.x = TRUE, sort = FALSE)
                         
                         # 2. Estrai primi 5 caratteri da orig_stabilimento_cod e merge con df_stab
+                        # Solo per animali importati dall'Italia (prov_italia == TRUE)
                         df_animali$cod_stab <- substr(df_animali$orig_stabilimento_cod, 1, 5)
                         
                         # Seleziona solo le colonne necessarie da df_stab e rinomina con suffisso _orig
