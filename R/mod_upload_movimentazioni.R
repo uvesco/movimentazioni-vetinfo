@@ -252,9 +252,9 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         )
                         
                         # Ricrea le colonne originali per il dataframe partite
-                        # Estrai i componenti dalla chiave
+                        # Estrai i componenti dalla chiave, includendo prov_italia per le statistiche
                         df_partite <- df_animali[!duplicated(df_animali$partita_key), 
-                                                c("orig_stabilimento_cod", "dest_stabilimento_cod", "ingresso_data", "partita_key")]
+                                                c("orig_stabilimento_cod", "dest_stabilimento_cod", "ingresso_data", "prov_italia", "partita_key")]
                         df_partite <- merge(df_partite, df_partite_temp, by = "partita_key")
                         df_partite$partita_key <- NULL  # Rimuovi la chiave temporanea
                         
