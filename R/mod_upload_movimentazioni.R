@@ -231,6 +231,25 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         motivi_lookup$Descrizione_norm <- normalize_text(motivi_lookup$Descrizione)
                         df_animali$ingresso_motivo_norm <- normalize_text(df_animali$ingresso_motivo)
                         
+                        # Diagnostica: stampa valori unici prima del merge
+                        valori_unici_file <- unique(df_animali$ingresso_motivo_norm[!is.na(df_animali$ingresso_motivo_norm)])
+                        valori_unici_ref <- unique(motivi_lookup$Descrizione_norm)
+                        message("[DEBUG] Valori unici in ingresso_motivo (file): ", length(valori_unici_file))
+                        message("[DEBUG] Valori unici in motivi_lookup (riferimento): ", length(valori_unici_ref))
+                        
+                        # Trova valori non matchabili PRIMA del merge
+                        non_matchati <- valori_unici_file[!valori_unici_file %in% valori_unici_ref]
+                        if (length(non_matchati) > 0) {
+                                message("[WARNING] Trovati ", length(non_matchati), " valori di ingresso_motivo che NON corrispondono al riferimento:")
+                                for (val in non_matchati) {
+                                        n_occorrenze <- sum(df_animali$ingresso_motivo_norm == val, na.rm = TRUE)
+                                        message("[WARNING]   \"", val, "\" (", n_occorrenze, " occorrenze)")
+                                }
+                                message("[INFO] Usa il modulo 'Sistema di Verifica e Debug' per maggiori dettagli")
+                        } else {
+                                message("[OK] Tutti i valori di ingresso_motivo sono riconosciuti!")
+                        }
+                        
                         # Esegui il merge usando le versioni normalizzate
                         # Prima aggiungi un campo temporaneo con l'indice originale per preservare l'ordine
                         df_animali$temp_idx <- seq_len(nrow(df_animali))
@@ -245,6 +264,14 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         # Ripristina l'ordine originale
                         df_animali <- df_animali[order(df_animali$temp_idx), ]
                         df_animali$temp_idx <- NULL
+                        
+                        # Diagnostica post-merge
+                        n_con_prov_italia <- sum(!is.na(df_animali$prov_italia))
+                        n_senza_prov_italia <- sum(is.na(df_animali$prov_italia))
+                        message("[DEBUG] Animali con prov_italia assegnato: ", n_con_prov_italia, " / ", nrow(df_animali))
+                        if (n_senza_prov_italia > 0) {
+                                message("[WARNING] ", n_senza_prov_italia, " animali senza prov_italia (merge fallito)")
+                        }
 
                         
                         # 2. Estrai primi 5 caratteri da orig_stabilimento_cod e merge con df_stab

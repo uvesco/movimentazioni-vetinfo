@@ -181,7 +181,7 @@ mod_verification_server <- function(id, animali_reactive, gruppo_reactive, parti
       if (!is.null(report$status) && report$status == "error") {
         return(div(
           class = "alert alert-danger",
-          icon("exclamation-triangle"),
+          bs_icon("exclamation-triangle"),
           " ", report$message
         ))
       }
@@ -192,7 +192,7 @@ mod_verification_server <- function(id, animali_reactive, gruppo_reactive, parti
       
       # Costruisci il report HTML
       tagList(
-        h4(icon("clipboard-check"), " Report di Verifica - Gruppo: ", report$gruppo),
+        h4(bs_icon("clipboard-check"), " Report di Verifica - Gruppo: ", report$gruppo),
         
         # Sezione 1: Analisi Motivi di Ingresso
         bslib::card(
@@ -233,7 +233,7 @@ mod_verification_server <- function(id, animali_reactive, gruppo_reactive, parti
                   hr(),
                   div(
                     class = "alert alert-warning",
-                    h5(icon("exclamation-triangle"), " Valori NON riconosciuti trovati!"),
+                    h5(bs_icon("exclamation-triangle"), " Valori NON riconosciuti trovati!"),
                     p("I seguenti valori di 'ingresso_motivo' non corrispondono a nessuna voce in STATIC_MOTIVI_INGRESSO:"),
                     tags$pre(
                       paste(
@@ -255,7 +255,7 @@ mod_verification_server <- function(id, animali_reactive, gruppo_reactive, parti
               } else {
                 div(
                   class = "alert alert-success",
-                  icon("check-circle"), " Tutti i motivi di ingresso sono stati riconosciuti correttamente!"
+                  bs_icon("check-circle"), " Tutti i motivi di ingresso sono stati riconosciuti correttamente!"
                 )
               },
               
@@ -282,7 +282,7 @@ mod_verification_server <- function(id, animali_reactive, gruppo_reactive, parti
               } else {
                 div(
                   class = "alert alert-danger",
-                  icon("times-circle"), " Il campo 'prov_italia' NON è presente nei dati! Il merge non è riuscito."
+                  bs_icon("x-circle"), " Il campo 'prov_italia' NON è presente nei dati! Il merge non è riuscito."
                 )
               }
             )
