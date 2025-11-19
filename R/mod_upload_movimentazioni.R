@@ -231,6 +231,21 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                                           by = "cod_stab", 
                                           all.x = TRUE, sort = FALSE)
                         
+                        # 3. Crea dataframe partite (sommario senza campi capo_*)
+                        # Identifica colonne che NON iniziano con "capo_"
+                        non_capo_cols <- grep("^capo_", colnames(df_animali), value = TRUE, invert = TRUE)
+                        
+                        if (length(non_capo_cols) > 0) {
+                                # Conta il numero di capi per ogni combinazione unica di valori non-capo
+                                df_partite <- aggregate(
+                                        list(n_capi = df_animali$capo_identificativo), 
+                                        by = df_animali[, non_capo_cols, drop = FALSE],
+                                        FUN = length
+                                )
+                        } else {
+                                df_partite <- NULL
+                        }
+                        
                         # 4. Ricava lo stato di nascita dalle prime due lettere di capo_identificativo
                         df_animali$nascita_stato <- substr(df_animali$capo_identificativo, 1, 2)
                         
@@ -247,21 +262,6 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         df_animali$nascita_COD_UTS[is_born_in_italy] <- substr(
                                 df_animali$capo_identificativo[is_born_in_italy], 3, 5
                         )
-                        
-                        # 3. Crea dataframe partite (sommario senza campi capo_*)
-                        # Identifica colonne che NON iniziano con "capo_"
-                        non_capo_cols <- grep("^capo_", colnames(df_animali), value = TRUE, invert = TRUE)
-                        
-                        if (length(non_capo_cols) > 0) {
-                                # Conta il numero di capi per ogni combinazione unica di valori non-capo
-                                df_partite <- aggregate(
-                                        list(n_capi = df_animali$capo_identificativo), 
-                                        by = df_animali[, non_capo_cols, drop = FALSE],
-                                        FUN = length
-                                )
-                        } else {
-                                df_partite <- NULL
-                        }
                         
                         list(
                                 animali = df_animali,
