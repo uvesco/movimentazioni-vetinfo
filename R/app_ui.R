@@ -19,7 +19,11 @@ app_ui <- function() {
 					verbatimTextOutput("tipo_file"),
 					uiOutput("n_animali"),
 					uiOutput("titolo_malattie"),
-					tableOutput("malattie_importate")
+					tableOutput("malattie_importate"),
+					
+					# Modulo di verifica e debug
+					hr(),
+					mod_verification_ui("verification")
 				)
 			)
 			

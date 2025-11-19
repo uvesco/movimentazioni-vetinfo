@@ -211,13 +211,68 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         # 1. Merge con STATIC_MOTIVI_INGRESSO per derivare provenienza nazionale/estera
                         # Rimuovi il campo Codice che non serve
                         motivi_lookup <- STATIC_MOTIVI_INGRESSO[, c("Descrizione", "prov_italia")]
-                        # standardizza spazi e maiuscole di motivi_lookup$Descrizione e di df_animali$ingresso_motivo
-                        motivi_lookup$Descrizione <- trimws(toupper(motivi_lookup$Descrizione))
-                        df_animali$ingresso_motivo <- trimws(toupper(df_animali$ingresso_motivo))
-                                                                             
-                        df_animali <- merge(df_animali, motivi_lookup, 
-                                          by.x = "ingresso_motivo", by.y = "Descrizione", 
-                                          all.x = TRUE, sort = FALSE)
+                        
+                        # Funzione di normalizzazione robusta per gestire spazi multipli, encoding, etc.
+                        normalize_text <- function(x) {
+                                # Converti in carattere
+                                x <- as.character(x)
+                                # Rimuovi spazi iniziali e finali
+                                x <- trimws(x)
+                                # Converti in maiuscolo
+                                x <- toupper(x)
+                                # Sostituisci spazi multipli con uno singolo
+                                x <- gsub("\\s+", " ", x)
+                                # Rimuovi eventuali caratteri di controllo invisibili
+                                x <- gsub("[\\x00-\\x1F\\x7F]", "", x)
+                                return(x)
+                        }
+                        
+                        # Applica normalizzazione robusta
+                        motivi_lookup$Descrizione_norm <- normalize_text(motivi_lookup$Descrizione)
+                        df_animali$ingresso_motivo_norm <- normalize_text(df_animali$ingresso_motivo)
+                        
+                        # Diagnostica: stampa valori unici prima del merge
+                        valori_unici_file <- unique(df_animali$ingresso_motivo_norm[!is.na(df_animali$ingresso_motivo_norm)])
+                        valori_unici_ref <- unique(motivi_lookup$Descrizione_norm)
+                        message("[DEBUG] Valori unici in ingresso_motivo (file): ", length(valori_unici_file))
+                        message("[DEBUG] Valori unici in motivi_lookup (riferimento): ", length(valori_unici_ref))
+                        
+                        # Trova valori non matchabili PRIMA del merge
+                        non_matchati <- valori_unici_file[!valori_unici_file %in% valori_unici_ref]
+                        if (length(non_matchati) > 0) {
+                                message("[WARNING] Trovati ", length(non_matchati), " valori di ingresso_motivo che NON corrispondono al riferimento:")
+                                for (val in non_matchati) {
+                                        n_occorrenze <- sum(df_animali$ingresso_motivo_norm == val, na.rm = TRUE)
+                                        message("[WARNING]   \"", val, "\" (", n_occorrenze, " occorrenze)")
+                                }
+                                message("[INFO] Usa il modulo 'Sistema di Verifica e Debug' per maggiori dettagli")
+                        } else {
+                                message("[OK] Tutti i valori di ingresso_motivo sono riconosciuti!")
+                        }
+                        
+                        # Esegui il merge usando le versioni normalizzate
+                        # Prima aggiungi un campo temporaneo con l'indice originale per preservare l'ordine
+                        df_animali$temp_idx <- seq_len(nrow(df_animali))
+                        
+                        df_animali <- merge(df_animali, 
+                                          motivi_lookup[, c("Descrizione_norm", "prov_italia")], 
+                                          by.x = "ingresso_motivo_norm", 
+                                          by.y = "Descrizione_norm", 
+                                          all.x = TRUE, 
+                                          sort = FALSE)
+                        
+                        # Ripristina l'ordine originale
+                        df_animali <- df_animali[order(df_animali$temp_idx), ]
+                        df_animali$temp_idx <- NULL
+                        
+                        # Diagnostica post-merge
+                        n_con_prov_italia <- sum(!is.na(df_animali$prov_italia))
+                        n_senza_prov_italia <- sum(is.na(df_animali$prov_italia))
+                        message("[DEBUG] Animali con prov_italia assegnato: ", n_con_prov_italia, " / ", nrow(df_animali))
+                        if (n_senza_prov_italia > 0) {
+                                message("[WARNING] ", n_senza_prov_italia, " animali senza prov_italia (merge fallito)")
+                        }
+
                         
                         # 2. Estrai primi 5 caratteri da orig_stabilimento_cod e merge con df_stab
                         # Solo per animali importati dall'Italia (prov_italia == TRUE)
@@ -230,23 +285,6 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         df_animali <- merge(df_animali, stab_cols, 
                                           by = "cod_stab", 
                                           all.x = TRUE, sort = FALSE)
-                        
-                        # 4. Ricava lo stato di nascita dalle prime due lettere di capo_identificativo
-                        df_animali$nascita_stato <- substr(df_animali$capo_identificativo, 1, 2)
-                        
-                        # 5. Merge con df_stati per aggiungere descrizione dello stato
-                        stati_lookup <- df_stati[, c("Codice", "Descrizione")]
-                        colnames(stati_lookup)[2] <- "nascita_stato_descr"
-                        df_animali <- merge(df_animali, stati_lookup, 
-                                          by.x = "nascita_stato", by.y = "Codice", 
-                                          all.x = TRUE, sort = FALSE)
-                        
-                        # 6. Per animali nati in Italia, ricava nascita_COD_UTS dai caratteri 3-5
-                        df_animali$nascita_COD_UTS <- NA_character_
-                        is_born_in_italy <- !is.na(df_animali$nascita_stato) & df_animali$nascita_stato == "IT"
-                        df_animali$nascita_COD_UTS[is_born_in_italy] <- substr(
-                                df_animali$capo_identificativo[is_born_in_italy], 3, 5
-                        )
                         
                         # 3. Crea dataframe partite (sommario senza campi capo_*)
                         # Identifica colonne che NON iniziano con "capo_"
@@ -268,6 +306,25 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                                 partite = df_partite
                         )
                 }
+                        
+                        # 4. Ricava lo stato di nascita dalle prime due lettere di capo_identificativo
+                        df_animali$nascita_stato <- substr(df_animali$capo_identificativo, 1, 2)
+                        
+                        # 5. Merge con df_stati per aggiungere descrizione dello stato
+                        stati_lookup <- df_stati[, c("Codice", "Descrizione")]
+                        colnames(stati_lookup)[2] <- "nascita_stato_descr"
+                        df_animali <- merge(df_animali, stati_lookup, 
+                                          by.x = "nascita_stato", by.y = "Codice", 
+                                          all.x = TRUE, sort = FALSE)
+                        
+                        # 6. Per animali nati in Italia, ricava nascita_COD_UTS dai caratteri 3-5
+                        df_animali$nascita_COD_UTS <- NA_character_
+                        is_born_in_italy <- !is.na(df_animali$nascita_stato) & df_animali$nascita_stato == "IT"
+                        df_animali$nascita_COD_UTS[is_born_in_italy] <- substr(
+                                df_animali$capo_identificativo[is_born_in_italy], 3, 5
+                        )
+                        
+
 
                 observeEvent(input$file, {                                # osserva l'input file
                         if (is.null(input$file)) {                        # nessun file selezionato
