@@ -93,6 +93,11 @@ mod_import_malattie <- function(id, gruppo) {
 			for (i in 1:length(files_malattie)) {
 				file <- files_malattie[i]
 				metadati <- readxl::read_excel(file, sheet = "metadati", col_types = meta_col_types)
+				
+				# converti le colonne data da POSIXct a Date
+				metadati$data_inizio <- as.Date(metadati$data_inizio)
+				metadati$data_fine <- as.Date(metadati$data_fine)
+				
 				metadati$file <- file
 				df_meta_malattie <- rbind(df_meta_malattie, metadati)
 			}
