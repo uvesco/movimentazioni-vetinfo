@@ -73,6 +73,7 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
 
                 dati <- reactiveVal(NULL)                                 # variabile reattiva per i dati caricati
                 gruppo_colonne <- reactiveVal(NULL)                       # variabile reattiva per il gruppo determinato
+                partite <- reactiveVal(NULL)                              # variabile reattiva per le partite (sommario)
                 upload_status <- reactiveVal(list(type = "idle", message = NULL)) # stato dell'upload per messaggi persistenti
 
                 notify_upload_issue <- function(msg, type = "error", duration = 8, status_type = "error") {
@@ -199,10 +200,75 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         )
                 }
 
+                enrich_animali_data <- function(df_animali) {             # arricchisce i dati degli animali con informazioni aggiuntive
+                        if (is.null(df_animali) || nrow(df_animali) == 0) {
+                                return(list(
+                                        animali = df_animali,
+                                        partite = NULL
+                                ))
+                        }
+                        
+                        # 1. Merge con STATIC_MOTIVI_INGRESSO per derivare provenienza nazionale/estera
+                        # Rimuovi il campo Codice che non serve
+                        motivi_lookup <- STATIC_MOTIVI_INGRESSO[, c("Descrizione", "prov_italia")]
+                        df_animali <- merge(df_animali, motivi_lookup, 
+                                          by.x = "ingresso_motivo", by.y = "Descrizione", 
+                                          all.x = TRUE, sort = FALSE)
+                        
+                        # 2. Estrai primi 5 caratteri da orig_stabilimento_cod e merge con df_stab
+                        df_animali$cod_stab <- substr(df_animali$orig_stabilimento_cod, 1, 5)
+                        
+                        # Seleziona solo le colonne necessarie da df_stab e rinomina con suffisso _orig
+                        stab_cols <- df_stab[, c("cod_stab", "COD_PROV", "PRO_COM_T")]
+                        colnames(stab_cols) <- c("cod_stab", "COD_PROV_orig", "PRO_COM_T_orig")
+                        
+                        df_animali <- merge(df_animali, stab_cols, 
+                                          by = "cod_stab", 
+                                          all.x = TRUE, sort = FALSE)
+                        
+                        # 4. Ricava lo stato di nascita dalle prime due lettere di capo_identificativo
+                        df_animali$nascita_stato <- substr(df_animali$capo_identificativo, 1, 2)
+                        
+                        # 5. Merge con df_stati per aggiungere descrizione dello stato
+                        stati_lookup <- df_stati[, c("Codice", "Descrizione")]
+                        colnames(stati_lookup)[2] <- "nascita_stato_descr"
+                        df_animali <- merge(df_animali, stati_lookup, 
+                                          by.x = "nascita_stato", by.y = "Codice", 
+                                          all.x = TRUE, sort = FALSE)
+                        
+                        # 6. Per animali nati in Italia, ricava nascita_COD_UTS dai caratteri 3-5
+                        df_animali$nascita_COD_UTS <- NA_character_
+                        is_born_in_italy <- !is.na(df_animali$nascita_stato) & df_animali$nascita_stato == "IT"
+                        df_animali$nascita_COD_UTS[is_born_in_italy] <- substr(
+                                df_animali$capo_identificativo[is_born_in_italy], 3, 5
+                        )
+                        
+                        # 3. Crea dataframe partite (sommario senza campi capo_*)
+                        # Identifica colonne che NON iniziano con "capo_"
+                        non_capo_cols <- grep("^capo_", colnames(df_animali), value = TRUE, invert = TRUE)
+                        
+                        if (length(non_capo_cols) > 0) {
+                                # Conta il numero di capi per ogni combinazione unica di valori non-capo
+                                df_partite <- aggregate(
+                                        list(n_capi = df_animali$capo_identificativo), 
+                                        by = df_animali[, non_capo_cols, drop = FALSE],
+                                        FUN = length
+                                )
+                        } else {
+                                df_partite <- NULL
+                        }
+                        
+                        list(
+                                animali = df_animali,
+                                partite = df_partite
+                        )
+                }
+
                 observeEvent(input$file, {                                # osserva l'input file
                         if (is.null(input$file)) {                        # nessun file selezionato
                                 dati(NULL)
                                 gruppo_colonne(NULL)
+                                partite(NULL)
                                 upload_status(list(type = "idle", message = NULL))
                                 return()
                         }
@@ -220,6 +286,7 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                                 if (is.null(df)) {                        # se la lettura è fallita
                                         dati(NULL)
                                         gruppo_colonne(NULL)
+                                        partite(NULL)
                                         return()
                                 }
                                 
@@ -228,11 +295,16 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                                 if (is.null(standardizzato)) {
                                         dati(NULL)
                                         gruppo_colonne(NULL)
+                                        partite(NULL)
                                         return()
                                 }
 
-                                dati(standardizzato$animali)              # salva i dati standardizzati
+                                # Arricchisce i dati con informazioni aggiuntive
+                                enriched <- enrich_animali_data(standardizzato$animali)
+                                
+                                dati(enriched$animali)                    # salva i dati arricchiti
                                 gruppo_colonne(standardizzato$gruppo)     # salva il gruppo determinato
+                                partite(enriched$partite)                 # salva il sommario delle partite
                         })
                 }, ignoreInit = TRUE)                                     # esegue solo dopo il primo caricamento
 
@@ -241,14 +313,15 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         req(dati())                                      # richiede che i dati siano presenti
                         req(gruppo_colonne())                            # richiede che il gruppo sia definito
                         
-                        # verifica che le colonne del dataframe corrispondano a quelle standard
-                        identical(colnames(dati()), col_standard) &&     # verifica corrispondenza colonne
-                                nrow(dati()) > 0                         # e presenza di almeno una riga
+                        # verifica che il dataframe contenga almeno le colonne standard
+                        has_standard_cols <- all(col_standard %in% colnames(dati()))
+                        has_standard_cols && nrow(dati()) > 0            # verifica presenza colonne base e almeno una riga
                 })
                 
                 # restituisce il data.frame caricato (o NULL) e il gruppo collegato
                 list(
-                        animali = reactive(dati()),                      # espone i dati standardizzati
+                        animali = reactive(dati()),                      # espone i dati arricchiti
+                        partite = reactive(partite()),                   # espone il sommario delle partite
                         gruppo = reactive(gruppo_colonne()),              # espone il gruppo determinato
                         status = reactive(upload_status()),               # espone lo stato dell'upload per messaggi
                         file_check = file_check                          # espone la verifica validità file
