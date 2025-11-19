@@ -200,7 +200,7 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         )
                 }
 
-                enrich_animali_data <- function(df_animali) {             # arricchisce i dati degli animali con informazioni aggiuntive
+                enrich_animali_data <- function(df_animali) {             # arricchisce i dati degli animali con chiavi geografiche
                         if (is.null(df_animali) || nrow(df_animali) == 0) {
                                 return(list(
                                         animali = df_animali,
