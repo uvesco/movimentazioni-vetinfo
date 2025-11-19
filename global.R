@@ -1,5 +1,10 @@
 source("R/data_dictionary.R")
 
+# Source modules
+source("R/mod_upload_movimentazioni.R")
+source("R/mod_import_malattie.R")
+source("R/mod_verification.R")
+
 STATIC_SPECIE <- read.csv(
   file = "data_static/decodifiche/specie.csv",
   stringsAsFactors = FALSE

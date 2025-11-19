@@ -211,13 +211,41 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         # 1. Merge con STATIC_MOTIVI_INGRESSO per derivare provenienza nazionale/estera
                         # Rimuovi il campo Codice che non serve
                         motivi_lookup <- STATIC_MOTIVI_INGRESSO[, c("Descrizione", "prov_italia")]
-                        # standardizza spazi e maiuscole di motivi_lookup$Descrizione e di df_animali$ingresso_motivo
-                        motivi_lookup$Descrizione <- trimws(toupper(motivi_lookup$Descrizione))
-                        df_animali$ingresso_motivo <- trimws(toupper(df_animali$ingresso_motivo))
-                                                                             
-                        df_animali <- merge(df_animali, motivi_lookup, 
-                                          by.x = "ingresso_motivo", by.y = "Descrizione", 
-                                          all.x = TRUE, sort = FALSE)
+                        
+                        # Funzione di normalizzazione robusta per gestire spazi multipli, encoding, etc.
+                        normalize_text <- function(x) {
+                                # Converti in carattere
+                                x <- as.character(x)
+                                # Rimuovi spazi iniziali e finali
+                                x <- trimws(x)
+                                # Converti in maiuscolo
+                                x <- toupper(x)
+                                # Sostituisci spazi multipli con uno singolo
+                                x <- gsub("\\s+", " ", x)
+                                # Rimuovi eventuali caratteri di controllo invisibili
+                                x <- gsub("[\\x00-\\x1F\\x7F]", "", x)
+                                return(x)
+                        }
+                        
+                        # Applica normalizzazione robusta
+                        motivi_lookup$Descrizione_norm <- normalize_text(motivi_lookup$Descrizione)
+                        df_animali$ingresso_motivo_norm <- normalize_text(df_animali$ingresso_motivo)
+                        
+                        # Esegui il merge usando le versioni normalizzate
+                        # Prima aggiungi un campo temporaneo con l'indice originale per preservare l'ordine
+                        df_animali$temp_idx <- seq_len(nrow(df_animali))
+                        
+                        df_animali <- merge(df_animali, 
+                                          motivi_lookup[, c("Descrizione_norm", "prov_italia")], 
+                                          by.x = "ingresso_motivo_norm", 
+                                          by.y = "Descrizione_norm", 
+                                          all.x = TRUE, 
+                                          sort = FALSE)
+                        
+                        # Ripristina l'ordine originale
+                        df_animali <- df_animali[order(df_animali$temp_idx), ]
+                        df_animali$temp_idx <- NULL
+
                         
                         # 2. Estrai primi 5 caratteri da orig_stabilimento_cod e merge con df_stab
                         # Solo per animali importati dall'Italia (prov_italia == TRUE)

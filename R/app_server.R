@@ -14,6 +14,9 @@ app_server <- function(input, output, session) {                               #
         malattie <- mod_import_malattie("df_standard", gruppo)
         st_import <- malattie
         
+        # Modulo di verifica e debug
+        verification <- mod_verification_server("verification", animali, gruppo, partite)
+        
         
         
         # Gestione tab dinamici --------------------------------              # sezione di gestione tab dinamici
