@@ -123,10 +123,17 @@ app_server <- function(input, output, session) {                               #
                 req(df, grp)                                              # si assicura che esistano
                 div(
                         bs_icon("info-circle-fill"), em("Informazioni"), br(),
-                        strong("Animali movimentati"), br(),
+                        h4("Animali movimentati"),
                         "Gruppo specie: ", grp, br(),          # restituisce il conteggio
                         "Numero di animali importati: ", nrow(df)
                 )          # restituisce il conteggio
+        })
+        
+        # titolo per la sezione malattie (mostrato solo quando gruppo è definito)
+        output$titolo_malattie <- renderUI({
+                grp <- gruppo()
+                req(grp)                                                 # richiede che il gruppo sia definito
+                h4("Malattie")
         })
         
         # mostra le malattie importate
