@@ -231,15 +231,20 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                                           by = "cod_stab", 
                                           all.x = TRUE, sort = FALSE)
                         
-                        # 3. Crea dataframe partite (sommario senza campi capo_*)
-                        # Identifica colonne che NON iniziano con "capo_"
-                        non_capo_cols <- grep("^capo_", colnames(df_animali), value = TRUE, invert = TRUE)
+                        # 3. Crea dataframe partite (sommario per origine)
+                        # Una partita è definita dalla combinazione di origine
+                        # Colonne che definiscono una partita (solo campi di origine)
+                        partite_cols <- c("orig_stabilimento_cod", "orig_regione_cod", "orig_asl_cod", 
+                                        "ingresso_motivo", "prov_italia")
                         
-                        if (length(non_capo_cols) > 0) {
-                                # Conta il numero di capi per ogni combinazione unica di valori non-capo
+                        # Verifica che le colonne esistano
+                        partite_cols_disponibili <- partite_cols[partite_cols %in% colnames(df_animali)]
+                        
+                        if (length(partite_cols_disponibili) > 0) {
+                                # Conta il numero di capi per ogni combinazione unica di valori di origine
                                 df_partite <- aggregate(
                                         list(n_capi = df_animali$capo_identificativo), 
-                                        by = df_animali[, non_capo_cols, drop = FALSE],
+                                        by = df_animali[, partite_cols_disponibili, drop = FALSE],
                                         FUN = length
                                 )
                         } else {
