@@ -3,7 +3,8 @@ app_server <- function(input, output, session) {                               #
 
         # Importazione dati --------------------------------                 # sezione di importazione
         upload <- mod_upload_movimentazioni_server("upload_mov")            # reattivi del modulo di upload
-        animali <- upload$animali                                            # dataframe standardizzato
+        animali <- upload$animali                                            # dataframe arricchito
+        partite <- upload$partite                                            # sommario delle partite
         gruppo <- upload$gruppo                                              # gruppo determinato dal file
         stato_upload <- upload$status                                        # stato del caricamento per i messaggi
         file_check <- upload$file_check                                      # verifica struttura del file (colonne)
@@ -117,16 +118,44 @@ app_server <- function(input, output, session) {                               #
 
         # ottieni il numero di righe dei dati importati
 
-        output$n_animali <- renderUI({                                   # mostra numero di righe caricate
+        output$n_animali <- renderUI({                                   # mostra numero di righe caricate e statistiche
                 df <- animali()                                           # ottiene i dati
                 grp <- gruppo()                                           # ottiene il gruppo
                 req(df, grp)                                              # si assicura che esistano
+                
+                # Calcola statistiche richieste
+                n_totale <- nrow(df)                                     # numero totale animali
+                
+                # Numero di partite movimentate
+                df_partite <- partite()
+                n_partite <- if (!is.null(df_partite)) nrow(df_partite) else 0
+                
+                # Numero di animali movimentati dall'Italia (prov_italia == TRUE)
+                n_animali_da_italia <- sum(!is.na(df$prov_italia) & df$prov_italia == TRUE, na.rm = TRUE)
+                
+                # Numero di partite movimentate dall'Italia
+                n_partite_da_italia <- 0
+                if (!is.null(df_partite) && "prov_italia" %in% colnames(df_partite)) {
+                        n_partite_da_italia <- sum(!is.na(df_partite$prov_italia) & df_partite$prov_italia == TRUE, na.rm = TRUE)
+                }
+                
+                # Numero di animali nati in Italia (nascita_stato == "IT")
+                n_animali_nati_italia <- sum(!is.na(df$nascita_stato) & df$nascita_stato == "IT", na.rm = TRUE)
+                
+                # Numero di animali nati all'estero (nascita_stato != "IT")
+                n_animali_nati_estero <- sum(!is.na(df$nascita_stato) & df$nascita_stato != "IT", na.rm = TRUE)
+                
                 div(
                         bs_icon("info-circle-fill"), em("Informazioni"), br(),
                         h4("Animali movimentati"),
-                        "Gruppo specie: ", grp, br(),          # restituisce il conteggio
-                        "Numero di animali importati: ", nrow(df)
-                )          # restituisce il conteggio
+                        "Gruppo specie: ", grp, br(),
+                        "Numero di animali importati: ", n_totale, br(),
+                        "Numero di partite movimentate: ", n_partite, br(),
+                        "Numero di animali movimentati dall'Italia: ", n_animali_da_italia, br(),
+                        "Numero di partite movimentate dall'Italia: ", n_partite_da_italia, br(),
+                        "Numero di animali nati in Italia: ", n_animali_nati_italia, br(),
+                        "Numero di animali nati all'estero: ", n_animali_nati_estero
+                )
         })
         
         # titolo per la sezione malattie (mostrato solo quando gruppo è definito)
