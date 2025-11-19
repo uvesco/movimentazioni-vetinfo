@@ -286,23 +286,6 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                                           by = "cod_stab", 
                                           all.x = TRUE, sort = FALSE)
                         
-                        # 4. Ricava lo stato di nascita dalle prime due lettere di capo_identificativo
-                        df_animali$nascita_stato <- substr(df_animali$capo_identificativo, 1, 2)
-                        
-                        # 5. Merge con df_stati per aggiungere descrizione dello stato
-                        stati_lookup <- df_stati[, c("Codice", "Descrizione")]
-                        colnames(stati_lookup)[2] <- "nascita_stato_descr"
-                        df_animali <- merge(df_animali, stati_lookup, 
-                                          by.x = "nascita_stato", by.y = "Codice", 
-                                          all.x = TRUE, sort = FALSE)
-                        
-                        # 6. Per animali nati in Italia, ricava nascita_COD_UTS dai caratteri 3-5
-                        df_animali$nascita_COD_UTS <- NA_character_
-                        is_born_in_italy <- !is.na(df_animali$nascita_stato) & df_animali$nascita_stato == "IT"
-                        df_animali$nascita_COD_UTS[is_born_in_italy] <- substr(
-                                df_animali$capo_identificativo[is_born_in_italy], 3, 5
-                        )
-                        
                         # 3. Crea dataframe partite (sommario senza campi capo_*)
                         # Identifica colonne che NON iniziano con "capo_"
                         non_capo_cols <- grep("^capo_", colnames(df_animali), value = TRUE, invert = TRUE)
@@ -323,6 +306,25 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                                 partite = df_partite
                         )
                 }
+                        
+                        # 4. Ricava lo stato di nascita dalle prime due lettere di capo_identificativo
+                        df_animali$nascita_stato <- substr(df_animali$capo_identificativo, 1, 2)
+                        
+                        # 5. Merge con df_stati per aggiungere descrizione dello stato
+                        stati_lookup <- df_stati[, c("Codice", "Descrizione")]
+                        colnames(stati_lookup)[2] <- "nascita_stato_descr"
+                        df_animali <- merge(df_animali, stati_lookup, 
+                                          by.x = "nascita_stato", by.y = "Codice", 
+                                          all.x = TRUE, sort = FALSE)
+                        
+                        # 6. Per animali nati in Italia, ricava nascita_COD_UTS dai caratteri 3-5
+                        df_animali$nascita_COD_UTS <- NA_character_
+                        is_born_in_italy <- !is.na(df_animali$nascita_stato) & df_animali$nascita_stato == "IT"
+                        df_animali$nascita_COD_UTS[is_born_in_italy] <- substr(
+                                df_animali$capo_identificativo[is_born_in_italy], 3, 5
+                        )
+                        
+
 
                 observeEvent(input$file, {                                # osserva l'input file
                         if (is.null(input$file)) {                        # nessun file selezionato
