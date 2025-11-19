@@ -66,21 +66,21 @@ col_standard_gruppi <- list(
 
 # colonne standard da applicare a tutti i gruppi di specie
 col_standard <- c(
-	"dest_regione_denom",
-	"dest_asl_cod",
-	"dest_asl_denom",
-	"dest_stabilimento_cod",
-	"dest_cf",
-	"dest_specie",
-	"dest_prov_cod_autom",
-	"dest_com",
-	"ingresso_motivo",
-	"ingresso_data",
-	"capo_identificativo",
-	"capo_identificativo_elettronico",
-	"orig_stabilimento_cod",
-	"orig_regione_cod",
-	"orig_asl_cod"
+	"dest_regione_denom", # nome della regione di destinazione
+	"dest_asl_cod", # codice asl di destinazione
+	"dest_asl_denom", # denominazione asl di destinazione
+	"dest_stabilimento_cod", # codice stabilimento di destinazione
+	"dest_cf", # codice fiscale di destinazione
+	"dest_specie", # specie di destinazione
+	"dest_prov_cod_autom", # codice provincia di destinazione (automatico)
+	"dest_com", # codice comune di destinazione
+	"ingresso_motivo", # motivo di ingresso
+	"ingresso_data", # data di ingresso
+	"capo_identificativo", # identificativo del capo
+	"capo_identificativo_elettronico", # identificativo elettronico del capo
+	"orig_stabilimento_cod", # codice stabilimento di origine
+	"orig_regione_cod", # codice regione di origine
+	"orig_asl_cod" # codice asl di origine
 )
 
 # nomi dei fogli che distinguono l'approccio provincia indenne dall'approccio a blocchi
