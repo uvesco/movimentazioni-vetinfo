@@ -211,6 +211,10 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         # 1. Merge con STATIC_MOTIVI_INGRESSO per derivare provenienza nazionale/estera
                         # Rimuovi il campo Codice che non serve
                         motivi_lookup <- STATIC_MOTIVI_INGRESSO[, c("Descrizione", "prov_italia")]
+                        # standardizza spazi e maiuscole di motivi_lookup$Descrizione e di df_animali$ingresso_motivo
+                        motivi_lookup$Descrizione <- trimws(toupper(motivi_lookup$Descrizione))
+                        df_animali$ingresso_motivo <- trimws(toupper(df_animali$ingresso_motivo))
+                                                                             
                         df_animali <- merge(df_animali, motivi_lookup, 
                                           by.x = "ingresso_motivo", by.y = "Descrizione", 
                                           all.x = TRUE, sort = FALSE)
