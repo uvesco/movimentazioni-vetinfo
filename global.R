@@ -48,3 +48,7 @@ df_comuni       <- read.csv(
   colClasses = "character",
   fileEncoding = "UTF-8"
 )
+
+# Load utility functions and modules
+source("R/utils_pipeline.R")
+source("R/mod_pipeline_controlli.R")
