@@ -231,6 +231,36 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                                           by = "cod_stab", 
                                           all.x = TRUE, sort = FALSE)
                         
+                        # 3. Crea dataframe partite (sommario per movimento)
+                        # Una partita è definita dalla combinazione di origine, destinazione e data
+                        # Per animali dall'estero (orig_stabilimento_cod = NA), raggruppa solo per destinazione e data
+                        
+                        # Crea una chiave di raggruppamento che tiene conto delle diverse logiche
+                        df_animali$partita_key <- ifelse(
+                                is.na(df_animali$orig_stabilimento_cod),
+                                # Per animali dall'estero: destinazione + data
+                                paste("ESTERO", df_animali$dest_stabilimento_cod, df_animali$ingresso_data, sep = "_"),
+                                # Per animali italiani: origine + destinazione + data
+                                paste(df_animali$orig_stabilimento_cod, df_animali$dest_stabilimento_cod, df_animali$ingresso_data, sep = "_")
+                        )
+                        
+                        # Aggrega per la chiave di raggruppamento
+                        df_partite_temp <- aggregate(
+                                list(n_capi = df_animali$capo_identificativo), 
+                                by = list(partita_key = df_animali$partita_key),
+                                FUN = length
+                        )
+                        
+                        # Ricrea le colonne originali per il dataframe partite
+                        # Estrai i componenti dalla chiave, includendo prov_italia per le statistiche
+                        df_partite <- df_animali[!duplicated(df_animali$partita_key), 
+                                                c("orig_stabilimento_cod", "dest_stabilimento_cod", "ingresso_data", "prov_italia", "partita_key")]
+                        df_partite <- merge(df_partite, df_partite_temp, by = "partita_key")
+                        df_partite$partita_key <- NULL  # Rimuovi la chiave temporanea
+                        
+                        # Rimuovi la chiave temporanea da df_animali
+                        df_animali$partita_key <- NULL
+                        
                         # 4. Ricava lo stato di nascita dalle prime due lettere di capo_identificativo
                         df_animali$nascita_stato <- substr(df_animali$capo_identificativo, 1, 2)
                         
@@ -247,21 +277,6 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         df_animali$nascita_COD_UTS[is_born_in_italy] <- substr(
                                 df_animali$capo_identificativo[is_born_in_italy], 3, 5
                         )
-                        
-                        # 3. Crea dataframe partite (sommario senza campi capo_*)
-                        # Identifica colonne che NON iniziano con "capo_"
-                        non_capo_cols <- grep("^capo_", colnames(df_animali), value = TRUE, invert = TRUE)
-                        
-                        if (length(non_capo_cols) > 0) {
-                                # Conta il numero di capi per ogni combinazione unica di valori non-capo
-                                df_partite <- aggregate(
-                                        list(n_capi = df_animali$capo_identificativo), 
-                                        by = df_animali[, non_capo_cols, drop = FALSE],
-                                        FUN = length
-                                )
-                        } else {
-                                df_partite <- NULL
-                        }
                         
                         list(
                                 animali = df_animali,
