@@ -83,8 +83,13 @@ estrai_comune_provenienza <- function(orig_stabilimento_cod, df_stab_table) {
 
 # Function 4: Merge disease data with prefix
 merge_malattie_con_prefisso <- function(df_animali, df_malattie, by_animali, by_malattie, prefisso) {
-	# Get all disease columns (excluding the join keys)
-	disease_cols <- setdiff(names(df_malattie), by_malattie)
+	# Geographic columns that should not be renamed
+	geo_cols <- c("COD_REG", "COD_UTS", "PRO_COM_T")
+	
+	# Get all disease columns (excluding the join keys and geographic columns)
+	all_cols <- names(df_malattie)
+	exclude_cols <- c(by_malattie, geo_cols)
+	disease_cols <- setdiff(all_cols, exclude_cols)
 	
 	# Create the merge
 	result <- merge(
@@ -92,14 +97,21 @@ merge_malattie_con_prefisso <- function(df_animali, df_malattie, by_animali, by_
 		df_malattie,
 		by.x = by_animali,
 		by.y = by_malattie,
-		all.x = TRUE
+		all.x = TRUE,
+		suffixes = c("", ".y")  # Add suffix to duplicate columns from malattie
 	)
+	
+	# Remove duplicate geographic columns from malattie table (those with .y suffix)
+	duplicate_geo_cols <- paste0(geo_cols, ".y")
+	result <- result[, !(names(result) %in% duplicate_geo_cols), drop = FALSE]
 	
 	# Rename disease columns with prefix
 	for (col in disease_cols) {
 		old_name <- col
 		new_name <- paste0(prefisso, col)
-		names(result)[names(result) == old_name] <- new_name
+		if (old_name %in% names(result)) {
+			names(result)[names(result) == old_name] <- new_name
+		}
 	}
 	
 	return(result)
