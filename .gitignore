@@ -37,7 +37,10 @@ renv/library/
 renv/staging/
 .Rprofile.user
 2do.txt
-test
-tests
+tests/
+# Keep tests directory but ignore test outputs
+tests/*.Rout
+tests/*.pdf
+tests/*.xlsx
 # rimane
 movimentazioni-vetinfo.Rproj

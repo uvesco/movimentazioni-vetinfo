@@ -13,6 +13,14 @@ app_server <- function(input, output, session) {                               #
         malattie <- mod_import_malattie("df_standard", gruppo)
         st_import <- malattie
         
+        # Pipeline controlli --------------------------------                  # sezione pipeline validazioni
+        pipeline <- mod_pipeline_controlli_server(
+                "pipeline",
+                animali = animali,
+                gruppo = gruppo,
+                malattie_data = malattie
+        )
+        
         
         
         # Gestione tab dinamici --------------------------------              # sezione di gestione tab dinamici
@@ -161,6 +169,206 @@ app_server <- function(input, output, session) {                               #
                 }, error = function(e) {
                         message("Errore in malattie_importate: ", e$message)
                         NULL                                             # ritorna NULL in caso di errore
+                })
+        })
+        
+        # ---- Outputs for Controllo Manuale tab ----
+        
+        # Table: provenienza non trovata
+        output$tabella_provenienza_non_trovata <- DT::renderDT({
+                req(pipeline$df_provenienza_non_trovati())
+                df <- pipeline$df_provenienza_non_trovati()
+                
+                if (nrow(df) == 0) {
+                        return(NULL)
+                }
+                
+                DT::datatable(
+                        df,
+                        options = list(
+                                pageLength = 10,
+                                scrollX = TRUE
+                        ),
+                        rownames = FALSE
+                )
+        })
+        
+        # Download handler: provenienza non trovata
+        output$download_provenienza_non_trovata <- downloadHandler(
+                filename = function() {
+                        paste0("provenienza_non_trovata_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
+                },
+                content = function(file) {
+                        req(pipeline$df_provenienza_non_trovati())
+                        df <- pipeline$df_provenienza_non_trovati()
+                        openxlsx::write.xlsx(df, file)
+                }
+        )
+        
+        # Table: nascita non trovata
+        output$tabella_nascita_non_trovata <- DT::renderDT({
+                req(pipeline$df_nascita_non_trovati())
+                df <- pipeline$df_nascita_non_trovati()
+                
+                if (nrow(df) == 0) {
+                        return(NULL)
+                }
+                
+                DT::datatable(
+                        df,
+                        options = list(
+                                pageLength = 10,
+                                scrollX = TRUE
+                        ),
+                        rownames = FALSE
+                )
+        })
+        
+        # Download handler: nascita non trovata
+        output$download_nascita_non_trovata <- downloadHandler(
+                filename = function() {
+                        paste0("nascita_non_trovata_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
+                },
+                content = function(file) {
+                        req(pipeline$df_nascita_non_trovati())
+                        df <- pipeline$df_nascita_non_trovati()
+                        openxlsx::write.xlsx(df, file)
+                }
+        )
+        
+        # ---- Outputs for Provenienze tab ----
+        
+        output$ui_provenienze <- renderUI({
+                req(pipeline$animali_provenienza_non_indenni())
+                liste_malattie <- pipeline$animali_provenienza_non_indenni()
+                
+                if (length(liste_malattie) == 0) {
+                        return(div(
+                                class = "alert alert-info",
+                                p("Nessuna movimentazione proveniente da zone non indenni per le malattie considerate")
+                        ))
+                }
+                
+                # Create UI elements for each disease
+                ui_elements <- lapply(names(liste_malattie), function(nome_malattia) {
+                        output_id <- paste0("tabella_prov_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
+                        download_id <- paste0("download_prov_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
+                        
+                        div(
+                                h4(nome_malattia),
+                                DT::DTOutput(output_id),
+                                downloadButton(download_id, paste("Scarica", nome_malattia)),
+                                hr()
+                        )
+                })
+                
+                do.call(tagList, ui_elements)
+        })
+        
+        # Dynamically create output renderers for provenance tables
+        observe({
+                req(pipeline$animali_provenienza_non_indenni())
+                liste_malattie <- pipeline$animali_provenienza_non_indenni()
+                
+                lapply(names(liste_malattie), function(nome_malattia) {
+                        output_id <- paste0("tabella_prov_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
+                        download_id <- paste0("download_prov_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
+                        
+                        # Create table output
+                        output[[output_id]] <- DT::renderDT({
+                                df <- liste_malattie[[nome_malattia]]
+                                DT::datatable(
+                                        df,
+                                        options = list(
+                                                pageLength = 10,
+                                                scrollX = TRUE
+                                        ),
+                                        rownames = FALSE
+                                )
+                        })
+                        
+                        # Create download handler
+                        output[[download_id]] <- downloadHandler(
+                                filename = function() {
+                                        paste0("provenienza_", 
+                                               gsub("[^a-zA-Z0-9]", "_", nome_malattia), 
+                                               "_", 
+                                               format(Sys.Date(), "%Y%m%d"), 
+                                               ".xlsx")
+                                },
+                                content = function(file) {
+                                        df <- liste_malattie[[nome_malattia]]
+                                        openxlsx::write.xlsx(df, file)
+                                }
+                        )
+                })
+        })
+        
+        # ---- Outputs for Nascite tab ----
+        
+        output$ui_nascite <- renderUI({
+                req(pipeline$animali_nascita_non_indenni())
+                liste_malattie <- pipeline$animali_nascita_non_indenni()
+                
+                if (length(liste_malattie) == 0) {
+                        return(div(
+                                class = "alert alert-info",
+                                p("Nessuna movimentazione di animali nati in zone non indenni per le malattie considerate")
+                        ))
+                }
+                
+                # Create UI elements for each disease
+                ui_elements <- lapply(names(liste_malattie), function(nome_malattia) {
+                        output_id <- paste0("tabella_nasc_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
+                        download_id <- paste0("download_nasc_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
+                        
+                        div(
+                                h4(nome_malattia),
+                                DT::DTOutput(output_id),
+                                downloadButton(download_id, paste("Scarica", nome_malattia)),
+                                hr()
+                        )
+                })
+                
+                do.call(tagList, ui_elements)
+        })
+        
+        # Dynamically create output renderers for birth tables
+        observe({
+                req(pipeline$animali_nascita_non_indenni())
+                liste_malattie <- pipeline$animali_nascita_non_indenni()
+                
+                lapply(names(liste_malattie), function(nome_malattia) {
+                        output_id <- paste0("tabella_nasc_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
+                        download_id <- paste0("download_nasc_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
+                        
+                        # Create table output
+                        output[[output_id]] <- DT::renderDT({
+                                df <- liste_malattie[[nome_malattia]]
+                                DT::datatable(
+                                        df,
+                                        options = list(
+                                                pageLength = 10,
+                                                scrollX = TRUE
+                                        ),
+                                        rownames = FALSE
+                                )
+                        })
+                        
+                        # Create download handler
+                        output[[download_id]] <- downloadHandler(
+                                filename = function() {
+                                        paste0("nascita_", 
+                                               gsub("[^a-zA-Z0-9]", "_", nome_malattia), 
+                                               "_", 
+                                               format(Sys.Date(), "%Y%m%d"), 
+                                               ".xlsx")
+                                },
+                                content = function(file) {
+                                        df <- liste_malattie[[nome_malattia]]
+                                        openxlsx::write.xlsx(df, file)
+                                }
+                        )
                 })
         })
 

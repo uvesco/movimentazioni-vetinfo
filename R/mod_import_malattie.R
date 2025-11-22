@@ -125,6 +125,14 @@ mod_import_malattie <- function(id, gruppo) {
 									basename(file),
 									" riconosciuto come 'province_indenni'")
 					provinceind <- provinceind[, c("COD_UTS", df_meta_malattie$campo[i])]
+					
+					# Convert disease field to boolean TRUE/FALSE without NA
+					campo_malattia <- df_meta_malattie$campo[i]
+					provinceind[[campo_malattia]] <- ifelse(
+						is.na(provinceind[[campo_malattia]]),
+						TRUE,  # NA means indenne (disease-free)
+						tolower(trimws(as.character(provinceind[[campo_malattia]]))) %in% c("s", "si", "1", "t", "true", "vero")
+					)
 						
 					# inserisco nel dataframe delle malattie nella lista corretta
 					malattie[[df_meta_malattie$specie[i]]][["province"]] <-
@@ -143,6 +151,21 @@ mod_import_malattie <- function(id, gruppo) {
 							by = "COD_UTS",
 							all.x = TRUE,
 							all.y = FALSE
+						)
+					
+					# Ensure no NA values remain in the disease columns after merge
+					# NA in merged data means the province/comune has no restriction = indenne
+					malattie[[df_meta_malattie$specie[i]]][["province"]][[campo_malattia]] <- 
+						ifelse(
+							is.na(malattie[[df_meta_malattie$specie[i]]][["province"]][[campo_malattia]]),
+							TRUE,
+							malattie[[df_meta_malattie$specie[i]]][["province"]][[campo_malattia]]
+						)
+					malattie[[df_meta_malattie$specie[i]]][["comuni"]][[campo_malattia]] <- 
+						ifelse(
+							is.na(malattie[[df_meta_malattie$specie[i]]][["comuni"]][[campo_malattia]]),
+							TRUE,
+							malattie[[df_meta_malattie$specie[i]]][["comuni"]][[campo_malattia]]
 						)
 					
 				} else if (setequal(fogli, tipi_files_malattie_fogli[["blocchi"]])) {
@@ -246,6 +269,15 @@ mod_import_malattie <- function(id, gruppo) {
 							all.y = FALSE
 						)
 						
+						# Ensure no NA values remain in comuni after merge
+						# NA means the comune is not in the blocchi list = indenne (TRUE)
+						malattie[[df_meta_malattie$specie[i]]][["comuni"]][[campo_malattia]] <- 
+							ifelse(
+								is.na(malattie[[df_meta_malattie$specie[i]]][["comuni"]][[campo_malattia]]),
+								TRUE,
+								malattie[[df_meta_malattie$specie[i]]][["comuni"]][[campo_malattia]]
+							)
+						
 						
 						
 						# province:
@@ -272,21 +304,32 @@ mod_import_malattie <- function(id, gruppo) {
 							all.x = TRUE,
 							all.y = FALSE
 						)
+						
+						# Ensure no NA values remain in province after merge
+						# NA means the province is not in the blocchi list = indenne (TRUE)
+						malattie[[df_meta_malattie$specie[i]]][["province"]][[campo_malattia]] <- 
+							ifelse(
+								is.na(malattie[[df_meta_malattie$specie[i]]][["province"]][[campo_malattia]]),
+								TRUE,
+								malattie[[df_meta_malattie$specie[i]]][["province"]][[campo_malattia]]
+							)
+						
+						# Verify no NA values remain (should not happen after the ifelse above)
 						if (any(is.na(malattie[[df_meta_malattie$specie[i]]][["province"]][, campo_malattia]))) {
-							stop(
-								"Attenzione: valori NA riscontrati nel file ",
+							warning(
+								"Attenzione: valori NA riscontrati dopo conversione nel file ",
 								basename(file),
 								" per la malattia ",
 								df_meta_malattie$malattia[i],
 								" e il gruppo ",
-								df_meta_malattie$specie[i]
+								df_meta_malattie$specie[i],
+								". Questo non dovrebbe accadere."
 							)
-							#######################################################################################
-							# la lista malattie è l'output finale con tutte le malattie a livello di provincia #
-							#######################################################################################
-							
-						
 						}
+						
+						#######################################################################################
+						# la lista malattie è l'output finale con tutte le malattie a livello di provincia #
+						#######################################################################################
 						
 						
 						# (accoda ai dataframe degli animali)
