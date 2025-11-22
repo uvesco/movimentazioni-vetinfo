@@ -37,7 +37,7 @@ renv/library/
 renv/staging/
 .Rprofile.user
 2do.txt
-test
+tests/
 # Keep tests directory but ignore test outputs
 tests/*.Rout
 tests/*.pdf
