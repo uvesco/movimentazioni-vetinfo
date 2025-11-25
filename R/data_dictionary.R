@@ -1,7 +1,7 @@
 # Nomi delle colonne standard e originali per i diversi gruppi di specie
 # Questo file deve essere caricato prima di altri moduli che usano queste variabili
 
-# colonne originali input ovicaprini
+# colonne originali input 
 
 col_orig_gruppi <- list(
 	ovicaprini = c("ROWNUM", "REGIONE", "CODICE ASL", "ASL DENOMINAZIONE",
