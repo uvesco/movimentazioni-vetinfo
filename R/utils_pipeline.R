@@ -1,26 +1,52 @@
-# Utility functions for the movimentazioni pipeline
+# =============================================================================
+# FUNZIONI UTILITY PER LA PIPELINE DI ELABORAZIONE MOVIMENTAZIONI
+# =============================================================================
+# Questo file contiene le funzioni utility usate dalla pipeline di controllo
+# delle movimentazioni animali. Le funzioni gestiscono:
+# - Classificazione origine Italia/Estero
+# - Estrazione codici geografici (provincia nascita, comune provenienza)
+# - Merge con dati malattie
+# - Filtri per animali da zone non indenni
+# =============================================================================
 
-# Function 1: Classify animal origin as "italia" or "estero"
-# Based on: motivo_ingresso, codice_stabilimento, or pattern in capo_identificativo
+# =============================================================================
+# FUNZIONE 1: CLASSIFICA ORIGINE
+# =============================================================================
+# Classifica ogni animale come proveniente da "italia" o "estero"
+# 
+# LOGICA DI CLASSIFICAZIONE (in ordine di priorità):
+# 1. Se il marchio auricolare inizia con "IT" → italia
+# 2. Se il motivo ingresso indica provenienza italiana (prov_italia=TRUE) → italia
+# 3. Se il motivo ingresso indica provenienza estera (prov_italia=FALSE) → estero
+# 4. Se il motivo ingresso è sconosciuto e non è IT → estero
+#
+# PARAMETRI:
+# - df: dataframe con colonne 'capo_identificativo' e 'ingresso_motivo'
+# - motivi_ingresso_table: tabella decodifica con colonne 'Codice' e 'prov_italia'
+#
+# RITORNA:
+# - df con nuova colonna 'origine' contenente "italia" o "estero"
+# =============================================================================
 classifica_origine <- function(df, motivi_ingresso_table) {
-	# First check if ear tag starts with IT - most reliable Italian indicator
+	# Prima verifica: il marchio auricolare inizia con IT?
+	# Questo è l'indicatore più affidabile per animali italiani
 	ear_tag <- as.character(df$capo_identificativo)
 	is_italian_ear_tag <- grepl("^IT", ear_tag, ignore.case = TRUE)
 	
-	# Then check motivo_ingresso lookup
+	# Seconda verifica: lookup nella tabella motivi ingresso
+	# Merge per ottenere il flag prov_italia dal codice motivo
 	df <- merge(
 		df,
 		motivi_ingresso_table[, c("Codice", "prov_italia")],
 		by.x = "ingresso_motivo",
 		by.y = "Codice",
-		all.x = TRUE
+		all.x = TRUE  # Mantiene tutti gli animali anche se motivo sconosciuto
 	)
 	
-	# Create the origine field:
-	# 1. If ear tag starts with IT -> italia
-	# 2. If prov_italia is TRUE -> italia
-	# 3. If prov_italia is FALSE -> estero
-	# 4. If prov_italia is NA (unknown motivo) and not IT ear tag -> estero
+	# Crea il campo origine applicando la logica di priorità:
+	# - IT nel marchio → sempre italia
+	# - Altrimenti usa prov_italia dalla tabella decodifica
+	# - Se NA (motivo sconosciuto) → estero per sicurezza
 	df$origine <- ifelse(
 		is_italian_ear_tag,
 		"italia",
@@ -31,100 +57,151 @@ classifica_origine <- function(df, motivi_ingresso_table) {
 		)
 	)
 	
-	# Remove the temporary prov_italia column
+	# Rimuove la colonna temporanea prov_italia
 	df$prov_italia <- NULL
 	
 	return(df)
 }
 
-# Function 2: Extract provincia code (COD_PROV_STORICO) from ear tag (marchio auricolare)
-# Italian ear tags typically have format: IT<digits>XXXX where digits encode province
-# The first 3 digits after IT represent the province code (COD_PROV_STORICO)
-# This code needs to be mapped to COD_UTS for matching with disease data
+# =============================================================================
+# FUNZIONE 2: ESTRAI PROVINCIA NASCITA
+# =============================================================================
+# Estrae il codice provincia di nascita dal marchio auricolare italiano.
+# 
+# FORMATO MARCHIO AURICOLARE ITALIANO:
+# - Struttura: IT<3 cifre provincia><altri caratteri>
+# - Esempio: IT001234567890 → provincia 001 (Torino storico)
+# 
+# MAPPING PROVINCE:
+# Il marchio contiene COD_PROV_STORICO (codice storico 001-110)
+# che deve essere mappato a COD_UTS (codice attuale, es. 201 per Torino metro)
+# tramite la tabella df_province
+#
+# PARAMETRI:
+# - capo_identificativo: vettore di marchi auricolari
+# - df_province_table: tabella province con COD_PROV_STORICO e COD_UTS (opzionale)
+#
+# RITORNA:
+# - vettore di COD_UTS se df_province_table fornita
+# - vettore di COD_PROV_STORICO (raw) se df_province_table NULL
+# =============================================================================
 estrai_provincia_nascita <- function(capo_identificativo, df_province_table = NULL) {
-	# Extract province code from ear tag pattern
-	# Pattern: IT followed by digits, first 3 digits are COD_PROV_STORICO
-	# Example: IT001... -> 001 (Torino, which maps to COD_UTS 201)
-	
-	# Convert to character to ensure string operations work
+	# Converte a carattere per operazioni su stringhe
 	ear_tag <- as.character(capo_identificativo)
 	
-	# Check if it starts with IT (Italian animals)
-	# Italian ear tags are typically IT followed by 12 digits
+	# Verifica se inizia con IT seguito da 3 cifre
 	is_italian <- grepl("^IT[0-9]{3}", ear_tag, ignore.case = TRUE)
 	
-	# Extract the 3-digit code after IT (this is COD_PROV_STORICO)
+	# Estrae le 3 cifre dopo IT (posizioni 3-5)
+	# Questo è il COD_PROV_STORICO (codice provincia storico)
 	cod_prov_storico <- ifelse(
 		is_italian,
-		substr(ear_tag, 3, 5),  # positions 3-5 (after IT)
+		substr(ear_tag, 3, 5),
 		NA_character_
 	)
 	
-	# If we have the province table, map COD_PROV_STORICO to COD_UTS
+	# Se abbiamo la tabella province, mappa COD_PROV_STORICO → COD_UTS
 	if (!is.null(df_province_table)) {
-		# Create a lookup table for fast matching
+		# Crea lookup table (rimuove duplicati per efficienza)
 		lookup <- df_province_table[, c("COD_PROV_STORICO", "COD_UTS")]
-		lookup <- lookup[!duplicated(lookup$COD_PROV_STORICO), ]  # Remove duplicates
+		lookup <- lookup[!duplicated(lookup$COD_PROV_STORICO), ]
 		
-		# Use match to preserve order
+		# Usa match() per preservare l'ordine originale delle righe
 		match_idx <- match(cod_prov_storico, lookup$COD_PROV_STORICO)
 		cod_uts <- lookup$COD_UTS[match_idx]
 		
 		return(cod_uts)
 	} else {
-		# If no province table provided, return the raw code
-		# (this maintains backward compatibility)
+		# Senza tabella, ritorna il codice raw (backward compatibility)
 		return(cod_prov_storico)
 	}
 }
 
-# Function 3: Extract comune ISTAT code from stabilimento code
-# Stabilimento codes are in format: XXXUU where XXX is numeric and UU is province abbreviation
-# This needs to be matched against df_stab table
+# =============================================================================
+# FUNZIONE 3: ESTRAI COMUNE PROVENIENZA
+# =============================================================================
+# Estrae il codice ISTAT del comune di provenienza dal codice stabilimento.
+#
+# FORMATO CODICE STABILIMENTO:
+# - Struttura: <3+ cifre><2 lettere sigla provincia>
+# - Esempio: 001TO → comune nel comune di Torino
+# - La mappatura avviene tramite df_stab (tabella prefissi stabilimento)
+#
+# PARAMETRI:
+# - orig_stabilimento_cod: vettore di codici stabilimento origine
+# - df_stab_table: tabella con cod_stab e PRO_COM_T
+#
+# RITORNA:
+# - vettore di PRO_COM_T (codici ISTAT comune a 6 cifre)
+# =============================================================================
 estrai_comune_provenienza <- function(orig_stabilimento_cod, df_stab_table) {
-	# Merge with the stabilimento table to get PRO_COM_T
+	# Crea dataframe temporaneo per il merge
 	result <- data.frame(
 		orig_stabilimento_cod = orig_stabilimento_cod,
 		stringsAsFactors = FALSE
 	)
 	
+	# Merge con tabella stabilimenti per ottenere PRO_COM_T
 	result <- merge(
 		result,
 		df_stab_table[, c("cod_stab", "PRO_COM_T")],
 		by.x = "orig_stabilimento_cod",
 		by.y = "cod_stab",
-		all.x = TRUE
+		all.x = TRUE  # Mantiene tutti i record, anche senza match
 	)
 	
-	# Return just the PRO_COM_T column
+	# Ritorna solo la colonna PRO_COM_T
 	return(result$PRO_COM_T)
 }
 
-# Function 4: Merge disease data with prefix
+# =============================================================================
+# FUNZIONE 4: MERGE MALATTIE CON PREFISSO
+# =============================================================================
+# Esegue il merge tra dataframe animali e dati malattie, aggiungendo un prefisso
+# alle colonne delle malattie per distinguere provenienza da nascita.
+#
+# PREFISSI USATI:
+# - "prov_" per status sanitario del comune di provenienza
+# - "nascita_" per status sanitario della provincia di nascita
+#
+# COLONNE ESCLUSE DAL PREFISSO:
+# Le colonne geografiche (COD_REG, COD_UTS, PRO_COM_T) non vengono rinominate
+#
+# PARAMETRI:
+# - df_animali: dataframe animali con colonna chiave
+# - df_malattie: dataframe malattie con colonne boolean per ogni malattia
+# - by_animali: nome colonna chiave in df_animali
+# - by_malattie: nome colonna chiave in df_malattie
+# - prefisso: prefisso da aggiungere (es. "prov_" o "nascita_")
+#
+# RITORNA:
+# - df_animali arricchito con colonne malattie prefissate
+# =============================================================================
 merge_malattie_con_prefisso <- function(df_animali, df_malattie, by_animali, by_malattie, prefisso) {
-	# Geographic columns that should not be renamed
+	# Colonne geografiche da non rinominare
 	geo_cols <- c("COD_REG", "COD_UTS", "PRO_COM_T")
 	
-	# Get all disease columns (excluding the join keys and geographic columns)
+	# Identifica le colonne malattie da rinominare
+	# (esclude chiavi join e colonne geografiche)
 	all_cols <- names(df_malattie)
 	exclude_cols <- c(by_malattie, geo_cols)
 	disease_cols <- setdiff(all_cols, exclude_cols)
 	
-	# Create the merge
+	# Esegue il merge (left join per mantenere tutti gli animali)
 	result <- merge(
 		df_animali,
 		df_malattie,
 		by.x = by_animali,
 		by.y = by_malattie,
 		all.x = TRUE,
-		suffixes = c("", ".y")  # Add suffix to duplicate columns from malattie
+		suffixes = c("", ".y")  # Suffisso per colonne duplicate
 	)
 	
-	# Remove duplicate geographic columns from malattie table (those with .y suffix)
+	# Rimuove eventuali colonne geografiche duplicate (con suffisso .y)
 	duplicate_geo_cols <- paste0(geo_cols, ".y")
 	result <- result[, !(names(result) %in% duplicate_geo_cols), drop = FALSE]
 	
-	# Rename disease columns with prefix
+	# Rinomina le colonne malattie con il prefisso specificato
 	for (col in disease_cols) {
 		old_name <- col
 		new_name <- paste0(prefisso, col)
@@ -136,28 +213,61 @@ merge_malattie_con_prefisso <- function(df_animali, df_malattie, by_animali, by_
 	return(result)
 }
 
-# Function 5: Create validation dataframe for animals with invalid geographic codes
+# =============================================================================
+# FUNZIONE 5: CREA DATAFRAME VALIDAZIONE
+# =============================================================================
+# Crea un dataframe contenente gli animali italiani con dati geografici non validi.
+# Usata per identificare animali che richiedono controllo manuale.
+#
+# CRITERI DI FILTRO:
+# - origine == "italia" (solo animali italiani)
+# - campo_geografico è NA (codice non trovato/mappato)
+#
+# PARAMETRI:
+# - df_animali: dataframe animali con colonna 'origine'
+# - campo_geografico: nome della colonna da verificare (es. "PRO_COM_T_prov")
+# - tipo_validazione: etichetta per il tipo di errore
+#
+# RITORNA:
+# - dataframe con animali non validi e colonna tipo_errore
+# =============================================================================
 crea_dataframe_validazione <- function(df_animali, campo_geografico, tipo_validazione) {
-	# Filter animals where geographic field is NA and origin is "italia"
+	# Filtra: animali italiani con campo geografico NA
 	df_invalid <- df_animali[
 		is.na(df_animali[[campo_geografico]]) & 
 		df_animali$origine == "italia",
 	]
 	
-	# Add a validation type column
+	# Aggiunge colonna descrittiva del tipo di errore
 	df_invalid$tipo_errore <- tipo_validazione
 	
 	return(df_invalid)
 }
 
-# Function 6: Filter animals from non disease-free zones
+# =============================================================================
+# FUNZIONE 6: FILTRA ANIMALI NON INDENNI
+# =============================================================================
+# Filtra gli animali provenienti/nati in zone non indenni per una specifica malattia.
+#
+# LOGICA BOOLEAN:
+# - TRUE = zona indenne (disease-free) → animale OK
+# - FALSE = zona non indenne → animale da segnalare
+# - NA = dato mancante → non incluso nel filtro
+#
+# PARAMETRI:
+# - df_animali: dataframe con colonne malattie (es. prov_Ind_MTBC)
+# - campo_malattia: nome colonna boolean da filtrare (es. "prov_Ind_MTBC")
+#
+# RITORNA:
+# - dataframe con solo animali da zone non indenni (campo_malattia == FALSE)
+# =============================================================================
 filtra_animali_non_indenni <- function(df_animali, campo_malattia) {
-	# Check if the disease field exists
+	# Verifica esistenza della colonna
 	if (!campo_malattia %in% names(df_animali)) {
-		return(data.frame())  # Return empty dataframe if field doesn't exist
+		return(data.frame())  # Ritorna vuoto se colonna non esiste
 	}
 	
-	# Filter animals where disease field is FALSE (non-disease-free)
+	# Filtra: valore FALSE = zona non indenne
 	df_non_indenni <- df_animali[
 		!is.na(df_animali[[campo_malattia]]) & 
 		df_animali[[campo_malattia]] == FALSE,
