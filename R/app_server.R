@@ -60,7 +60,7 @@ app_server <- function(input, output, session) {                               #
                 gruppo()
         })
         
-        # tabella finale completa con possibilità di download in Excel
+        # tabella malattie completa con possibilità di download in Excel
         output$tabella_output <- DT::renderDT({
                 grp <- gruppo()
                 req(grp)                                                 # richiede che il gruppo sia definito
@@ -95,6 +95,28 @@ app_server <- function(input, output, session) {                               #
                 })
         }, server = FALSE)
         
+        # tabella animali movimentati completa dopo merge con le malattie
+        output$tabella_animali_movimentati <- DT::renderDT({
+                df <- pipeline$dati_processati()                           # ottiene i dati processati
+                req(df)                                                    # richiede che esistano
+                
+                DT::datatable(
+                        df,
+                        extensions = "Buttons",
+                        options = list(
+                                dom = "Bfrtip",
+                                buttons = list(list(
+                                        extend = "excel",
+                                        filename = paste0("animali_movimentati_", format(Sys.Date(), "%Y%m%d"))
+                                )),
+                                pageLength = 8,
+                                lengthMenu = c(8, 15, 25),
+                                scrollX = TRUE
+                        ),
+                        filter = "top",
+                        rownames = FALSE
+                )
+        }, server = FALSE)
 
         # messaggio sul tipo di file importato
 
