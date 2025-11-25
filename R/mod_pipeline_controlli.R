@@ -23,7 +23,8 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			df <- classifica_origine(df, STATIC_MOTIVI_INGRESSO)
 			
 			# 2. Extract provincia di nascita from ear tag
-			df$cod_uts_nascita <- estrai_provincia_nascita(df$capo_identificativo)
+			# Pass df_province to map COD_PROV_STORICO to COD_UTS
+			df$cod_uts_nascita <- estrai_provincia_nascita(df$capo_identificativo, df_province)
 			
 			# 3. Extract comune di provenienza from stabilimento code
 			df$PRO_COM_T_prov <- estrai_comune_provenienza(df$orig_stabilimento_cod, df_stab)

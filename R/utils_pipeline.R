@@ -3,7 +3,11 @@
 # Function 1: Classify animal origin as "italia" or "estero"
 # Based on: motivo_ingresso, codice_stabilimento, or pattern in capo_identificativo
 classifica_origine <- function(df, motivi_ingresso_table) {
-	# Start with assumption based on motivo_ingresso
+	# First check if ear tag starts with IT - most reliable Italian indicator
+	ear_tag <- as.character(df$capo_identificativo)
+	is_italian_ear_tag <- grepl("^IT", ear_tag, ignore.case = TRUE)
+	
+	# Then check motivo_ingresso lookup
 	df <- merge(
 		df,
 		motivi_ingresso_table[, c("Codice", "prov_italia")],
@@ -12,11 +16,19 @@ classifica_origine <- function(df, motivi_ingresso_table) {
 		all.x = TRUE
 	)
 	
-	# Create the origine field based on prov_italia
+	# Create the origine field:
+	# 1. If ear tag starts with IT -> italia
+	# 2. If prov_italia is TRUE -> italia
+	# 3. If prov_italia is FALSE -> estero
+	# 4. If prov_italia is NA (unknown motivo) and not IT ear tag -> estero
 	df$origine <- ifelse(
-		is.na(df$prov_italia) | df$prov_italia == FALSE,
-		"estero",
-		"italia"
+		is_italian_ear_tag,
+		"italia",
+		ifelse(
+			!is.na(df$prov_italia) & df$prov_italia == TRUE,
+			"italia",
+			"estero"
+		)
 	)
 	
 	# Remove the temporary prov_italia column
@@ -25,13 +37,14 @@ classifica_origine <- function(df, motivi_ingresso_table) {
 	return(df)
 }
 
-# Function 2: Extract provincia code (COD_UTS) from ear tag (marchio auricolare)
+# Function 2: Extract provincia code (COD_PROV_STORICO) from ear tag (marchio auricolare)
 # Italian ear tags typically have format: IT<digits>XXXX where digits encode province
-# The first 3 digits after IT represent the province code
-estrai_provincia_nascita <- function(capo_identificativo) {
-	# Extract COD_UTS from ear tag pattern
-	# Pattern: IT followed by digits, first 3 digits are province identifier
-	# Example: IT001... -> 001 (numeric province code that needs to be mapped to UTS)
+# The first 3 digits after IT represent the province code (COD_PROV_STORICO)
+# This code needs to be mapped to COD_UTS for matching with disease data
+estrai_provincia_nascita <- function(capo_identificativo, df_province_table = NULL) {
+	# Extract province code from ear tag pattern
+	# Pattern: IT followed by digits, first 3 digits are COD_PROV_STORICO
+	# Example: IT001... -> 001 (Torino, which maps to COD_UTS 201)
 	
 	# Convert to character to ensure string operations work
 	ear_tag <- as.character(capo_identificativo)
@@ -40,23 +53,29 @@ estrai_provincia_nascita <- function(capo_identificativo) {
 	# Italian ear tags are typically IT followed by 12 digits
 	is_italian <- grepl("^IT[0-9]{3}", ear_tag, ignore.case = TRUE)
 	
-	# Extract the 3-digit code after IT
-	cod_provincia <- ifelse(
+	# Extract the 3-digit code after IT (this is COD_PROV_STORICO)
+	cod_prov_storico <- ifelse(
 		is_italian,
 		substr(ear_tag, 3, 5),  # positions 3-5 (after IT)
 		NA_character_
 	)
 	
-	# The extracted code is a 3-digit numeric province code
-	# This needs to be formatted as a zero-padded 3-character string
-	# which should match COD_UTS in most cases
-	cod_uts <- ifelse(
-		!is.na(cod_provincia),
-		sprintf("%03s", cod_provincia),
-		NA_character_
-	)
-	
-	return(cod_uts)
+	# If we have the province table, map COD_PROV_STORICO to COD_UTS
+	if (!is.null(df_province_table)) {
+		# Create a lookup table for fast matching
+		lookup <- df_province_table[, c("COD_PROV_STORICO", "COD_UTS")]
+		lookup <- lookup[!duplicated(lookup$COD_PROV_STORICO), ]  # Remove duplicates
+		
+		# Use match to preserve order
+		match_idx <- match(cod_prov_storico, lookup$COD_PROV_STORICO)
+		cod_uts <- lookup$COD_UTS[match_idx]
+		
+		return(cod_uts)
+	} else {
+		# If no province table provided, return the raw code
+		# (this maintains backward compatibility)
+		return(cod_prov_storico)
+	}
 }
 
 # Function 3: Extract comune ISTAT code from stabilimento code
