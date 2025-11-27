@@ -15,35 +15,59 @@
 # Classifica ogni animale come proveniente da "italia" o "estero"
 # 
 # LOGICA DI CLASSIFICAZIONE (in ordine di priorità):
-# 1. Se il marchio auricolare inizia con "IT" → italia
+# 1. Se il marchio auricolare inizia con "IT" → italia 2ch (il marchio auricolare non c'entra con la provenienza ma con la nascita)
 # 2. Se il motivo ingresso indica provenienza italiana (prov_italia=TRUE) → italia
 # 3. Se il motivo ingresso indica provenienza estera (prov_italia=FALSE) → estero
-# 4. Se il motivo ingresso è sconosciuto e non è IT → estero
+# 4. Se il motivo ingresso è sconosciuto e non è IT → estero 2ch (NA)
 #
 # PARAMETRI:
 # - df: dataframe con colonne 'capo_identificativo' e 'ingresso_motivo'
 # - motivi_ingresso_table: tabella decodifica con colonne 'Codice' e 'prov_italia'
 #
 # RITORNA:
-# - df con nuova colonna 'origine' contenente "italia" o "estero"
+# - df con nuova colonna 'origine' contenente "italia" o "estero" 2ch (TRUE="Italia, FALSE="Estero", NA = Ignoto -> da riconsiderare manualmente (terza specifica)
 # =============================================================================
 classifica_origine <- function(df, motivi_ingresso_table) {
-	# Prima verifica: il marchio auricolare inizia con IT?
-	# Questo è l'indicatore più affidabile per animali italiani
-	ear_tag <- as.character(df$capo_identificativo)
-	is_italian_ear_tag <- grepl("^IT", ear_tag, ignore.case = TRUE)
+	# # Prima verifica: il marchio auricolare inizia con IT?
+	# # Questo è l'indicatore più affidabile per animali italiani
+	# ear_tag <- as.character(df$capo_identificativo)
+	# is_italian_ear_tag <- grepl("^IT", ear_tag, ignore.case = TRUE)
+	
+	
+	# prima verifica: orig_stabilimento_cod non è nullo
+	
 	
 	# Seconda verifica: lookup nella tabella motivi ingresso
 	# Merge per ottenere il flag prov_italia dal codice motivo
+	normalize_string <- function(x) {
+		x |>
+			tolower() |>                 # tutto minuscolo
+			gsub("\\s+", "", x = _) |>   # elimina TUTTI gli spazi
+			trimws()                     # rimuove spazi iniziali/finali se restano
+	}
+	
+	
+	# Creo copie normalizzate per il join
+	df$ingresso_motivo_norm <- normalize_string(df$ingresso_motivo)
+	motivi_ingresso_table$Descrizione_norm <- normalize_string(motivi_ingresso_table$Descrizione)
+	
+	# Merge robusto
 	df <- merge(
 		df,
-		motivi_ingresso_table[, c("Codice", "prov_italia")],
-		by.x = "ingresso_motivo",
-		by.y = "Codice",
-		all.x = TRUE  # Mantiene tutti gli animali anche se motivo sconosciuto
+		motivi_ingresso_table[, c("Descrizione_norm", "prov_italia")],
+		by.x = "ingresso_motivo_norm",
+		by.y = "Descrizione_norm",
+		all.x = TRUE
 	)
 	
+	# Elimino modifica temporanea
+	df$ingresso_motivo_norm <- NULL
+	
+
+	
+	
 	# Crea il campo origine applicando la logica di priorità:
+	# se cod
 	# - IT nel marchio → sempre italia
 	# - Altrimenti usa prov_italia dalla tabella decodifica
 	# - Se NA (motivo sconosciuto) → estero per sicurezza
