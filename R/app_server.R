@@ -248,11 +248,19 @@ app_server <- function(input, output, session) {
         # Download debug: dataset completo con tutti i merge (include animali esteri)
         output$download_debug_dataset <- downloadHandler(
                 filename = function() {
-                        paste0("movimentazioni_debug_complete_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
+                        paste0("movimentazioni_complete_debug_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
                 },
                 content = function(file) {
                         df <- pipeline$dati_processati()
-                        req(df)
+                        if (is.null(df)) {
+                                shiny::showNotification(
+                                        "Nessun dato disponibile per il download.",
+                                        type = "warning",
+                                        duration = 6,
+                                        session = session
+                                )
+                                stop("Nessun dato disponibile per il download.")
+                        }
                         if (nrow(df) == 0) {
                                 shiny::showNotification(
                                         "Nessun dato disponibile per il download.",
