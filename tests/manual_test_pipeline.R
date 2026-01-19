@@ -42,12 +42,12 @@ cat("✓ Test 2 completed\n\n")
 
 # Test 3: estrai_comune_provenienza
 cat("Test 3: estrai_comune_provenienza\n")
-test_stab_codes <- c("001TO", "052CT", "999XX7820", NA)
+test_stab_codes <- c("001TO", "052CT", "008BZ210", "999XX7820", NA)
 result <- estrai_comune_provenienza(test_stab_codes, df_stab)
 cat("Input stab codes:", test_stab_codes, "\n")
 cat("Output PRO_COM_T:", result, "\n")
-cat("Expected: 001001, 087052, NA, NA\n")
-cat("(Note: 999XX7820 is invalid code -> NA)\n")
+cat("Expected: 001001, 087052, 021008, NA, NA\n")
+cat("(Note: 999XX7820 is invalid code -> NA, 008BZ210 uses prefix 008BZ)\n")
 cat("✓ Test 3 completed\n\n")
 
 # Test 4: merge_malattie_con_prefisso

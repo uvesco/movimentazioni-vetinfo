@@ -245,6 +245,46 @@ app_server <- function(input, output, session) {
                 )
         }, server = FALSE)
 
+        # Download debug: dataset completo con tutti i merge (include animali esteri)
+        output$download_debug_dataset <- downloadHandler(
+                filename = function() {
+                        paste0("movimentazioni_complete_debug_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
+                },
+                content = function(file) {
+                        df <- pipeline$dati_processati()
+                        if (is.null(df)) {
+                                shiny::showNotification(
+                                        "Nessun dato disponibile per il download.",
+                                        type = "warning",
+                                        duration = 6,
+                                        session = session
+                                )
+                                stop("Nessun dato disponibile per il download.")
+                        }
+                        if (nrow(df) == 0) {
+                                shiny::showNotification(
+                                        "Nessun dato disponibile per il download.",
+                                        type = "warning",
+                                        duration = 6,
+                                        session = session
+                                )
+                                stop("Nessun dato disponibile per il download.")
+                        }
+                        tryCatch(
+                                openxlsx::write.xlsx(df, file),
+                                error = function(e) {
+                                        shiny::showNotification(
+                                                paste0("Errore durante l'esportazione del file debug: ", e$message),
+                                                type = "error",
+                                                duration = 8,
+                                                session = session
+                                        )
+                                        stop(e$message)
+                                }
+                        )
+                }
+        )
+
         # =====================================================================
         # SEZIONE 6: MESSAGGI E INFO TAB INPUT
         # =====================================================================

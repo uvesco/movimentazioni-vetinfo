@@ -115,13 +115,15 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			# -----------------------------------------------------------------
 			# Merge diretto con tabella stabilimenti per ottenere PRO_COM_T
 			# Questo collega i codici allevamento di provenienza con il comune
+			df$orig_stabilimento_cod_norm <- normalize_stab_code(df$orig_stabilimento_cod)
 			df <- merge(
 				df,
 				df_stab[, c("cod_stab", "PRO_COM_T")],
-				by.x = "orig_stabilimento_cod",
+				by.x = "orig_stabilimento_cod_norm",
 				by.y = "cod_stab",
 				all.x = TRUE
 			)
+			df$orig_stabilimento_cod_norm <- NULL
 			
 			# Rinomina per distinguere da altre colonne PRO_COM_T
 			names(df)[names(df) == "PRO_COM_T"] <- "PRO_COM_T_prov"

@@ -9,6 +9,7 @@
 # che ora esegue i merge direttamente in modo lineare.
 #
 # FUNZIONI ANCORA IN USO:
+# - normalize_stab_code: Normalizzazione prefissi codici stabilimento
 # - estrai_provincia_nascita: Estrazione provincia da marchio auricolare
 # - crea_dataframe_validazione: Creazione dataframe per validazione
 # - filtra_animali_non_indenni: Filtro animali da zone non indenni
@@ -18,6 +19,27 @@
 # - estrai_comune_provenienza: Merge ora eseguito direttamente nella pipeline
 # - merge_malattie_con_prefisso: Merge ora eseguito direttamente nella pipeline
 # =============================================================================
+
+# =============================================================================
+# FUNZIONE 0: NORMALIZZA CODICE STABILIMENTO
+# =============================================================================
+# Normalizza i codici stabilimento al prefisso a 5 caratteri (es. 008BZ210 → 008BZ).
+# PARAMETRI:
+# - x: vettore di codici stabilimento (character/factor) con eventuali suffissi.
+# RITORNA:
+# - vettore character con prefisso a 5 caratteri, oppure NA se mancante.
+# NOTA:
+# - I prefissi in df_prefissi_stab.csv sono a 5 caratteri (3 cifre + sigla provincia).
+# - Se il codice ha meno di 5 caratteri, viene restituito così com'è dopo normalizzazione.
+# - I valori non character vengono convertiti e le stringhe vuote diventano NA.
+normalize_stab_code <- function(x) {
+	normalized <- toupper(trimws(as.character(x)))
+	normalized[normalized == ""] <- NA_character_
+	prefix <- substr(normalized, 1, 5)
+	short_idx <- !is.na(normalized) & nchar(normalized) < 5
+	prefix[short_idx] <- normalized[short_idx]
+	prefix
+}
 
 # =============================================================================
 # FUNZIONE 1 [DEPRECATA]: CLASSIFICA ORIGINE
@@ -185,7 +207,7 @@ estrai_provincia_nascita <- function(capo_identificativo, df_province_table = NU
 estrai_comune_provenienza <- function(orig_stabilimento_cod, df_stab_table) {
 	# Crea dataframe temporaneo per il merge
 	result <- data.frame(
-		orig_stabilimento_cod = orig_stabilimento_cod,
+		orig_stabilimento_cod = normalize_stab_code(orig_stabilimento_cod),
 		stringsAsFactors = FALSE
 	)
 	
