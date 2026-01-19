@@ -245,6 +245,18 @@ app_server <- function(input, output, session) {
                 )
         }, server = FALSE)
 
+        # Download debug: dataset completo con tutti i merge (include animali esteri)
+        output$download_debug_dataset <- downloadHandler(
+                filename = function() {
+                        paste0("movimentazioni_debug_complete_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
+                },
+                content = function(file) {
+                        req(pipeline$dati_processati())
+                        df <- pipeline$dati_processati()
+                        openxlsx::write.xlsx(df, file)
+                }
+        )
+
         # =====================================================================
         # SEZIONE 6: MESSAGGI E INFO TAB INPUT
         # =====================================================================

@@ -124,7 +124,12 @@ app_ui <- function() {
 						tags$li("TRUE = zona indenne (disease-free)"),
 						tags$li("FALSE = zona non indenne"),
 						tags$li("Le malattie sono filtrate in base alla data di validità")
-					)
+					),
+					
+					hr(),
+					h2("Debug"),
+					p("Download del file importato con tutti i merge effettuati (incluse le malattie), utile per la verifica manuale."),
+					downloadButton("download_debug_dataset", "Scarica dataset completo")
 				)
 			)
 			
