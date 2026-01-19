@@ -253,7 +253,12 @@ app_server <- function(input, output, session) {
                 content = function(file) {
                         df <- pipeline$dati_processati()
                         req(df)
-                        openxlsx::write.xlsx(df, file)
+                        tryCatch(
+                                openxlsx::write.xlsx(df, file),
+                                error = function(e) {
+                                        stop("Errore durante l'esportazione del file debug: ", e$message)
+                                }
+                        )
                 }
         )
 
