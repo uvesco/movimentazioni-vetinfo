@@ -30,6 +30,8 @@
 # - vettore character con prefisso a 5 caratteri, oppure NA se mancante.
 # NOTA:
 # - I prefissi in df_prefissi_stab.csv sono a 5 caratteri (3 cifre + sigla provincia).
+# - Se il codice ha meno di 5 caratteri, viene restituito così com'è dopo normalizzazione.
+# - I valori non character vengono convertiti e le stringhe vuote diventano NA.
 normalize_stab_code <- function(x) {
 	x <- toupper(trimws(as.character(x)))
 	ifelse(is.na(x) | x == "", NA_character_, substr(x, 1, 5))
