@@ -22,6 +22,13 @@
 # =============================================================================
 # FUNZIONE 0: NORMALIZZA CODICE STABILIMENTO
 # =============================================================================
+# Normalizza i codici stabilimento al prefisso a 5 caratteri (es. 008BZ210 → 008BZ).
+# PARAMETRI:
+# - x: vettore di codici stabilimento (character/factor) con eventuali suffissi.
+# RITORNA:
+# - vettore character con prefisso a 5 caratteri, oppure NA se mancante.
+# NOTA:
+# - I prefissi in df_prefissi_stab.csv sono a 5 caratteri (3 cifre + sigla provincia).
 normalize_stab_code <- function(x) {
 	x <- toupper(trimws(as.character(x)))
 	ifelse(is.na(x) | x == "", NA_character_, substr(x, 1, 5))
