@@ -176,27 +176,23 @@ app_server <- function(input, output, session) {
                                 inputId = "tabs",
                                 target = "input",
                                 position = "after",
-                                tab = tabPanel(
-                                        title = "Controllo Manuale",
-                                        value = "controllo_manuale",
-                                        h3("Animali con dati geografici non validi"),
-                                        p("Questa sezione mostra gli animali italiani per cui non è stato 
-                                           possibile identificare correttamente i dati geografici."),
-                                        hr(),
-                                        
-                                        h4("Comune di provenienza non trovato"),
-                                        p("Animali italiani con codice stabilimento di origine non mappabile:"),
-                                        DT::DTOutput("tabella_provenienza_non_trovata"),
-                                        downloadButton("download_provenienza_non_trovata", "Scarica Excel"),
-                                        
-                                        hr(),
-                                        
-                                        h4("Provincia di nascita non trovata"),
-                                        p("Animali italiani con marchio auricolare non mappabile a una provincia:"),
-                                        DT::DTOutput("tabella_nascita_non_trovata"),
-                                        downloadButton("download_nascita_non_trovata", "Scarica Excel")
-                                )
-                        )
+						tab = tabPanel(
+								title = "Controllo Manuale",
+								value = "controllo_manuale",
+								h3("Animali con dati geografici non validi"),
+								p("Questa sezione mostra gli animali italiani per cui non è stato 
+								   possibile identificare correttamente i dati geografici."),
+								hr(),
+								
+								h4("Animali di provenienza nazionale con codice stabilimento di origine non mappabile"),
+								uiOutput("ui_provenienza_non_trovata"),
+								
+								hr(),
+								
+								h4("Animali nati in Italia con provincia nel marchio auricolare non mappabile"),
+								uiOutput("ui_nascita_non_trovata")
+						)
+				)
                         tab_controllo_inserita(TRUE)
                         
                 } else if (!ha_problemi && tab_controllo_inserita()) {
@@ -363,10 +359,65 @@ app_server <- function(input, output, session) {
                 })
         })
         
+        # Riepilogo controlli manuali e zone non indenni
+        output$riepilogo_controlli <- renderUI({
+                df <- animali()
+                if (is.null(df)) {
+                        return(NULL)
+                }
+                
+                conta_animali <- function(lista) {
+                        if (length(lista) == 0) {
+                                return(0)
+                        }
+                        ids <- unlist(lapply(lista, function(df_item) df_item$capo_identificativo))
+                        ids <- ids[!is.na(ids)]
+                        length(unique(ids))
+                }
+                
+                df_prov <- tryCatch(pipeline$df_provenienza_non_trovati(), error = function(e) data.frame())
+                df_nasc <- tryCatch(pipeline$df_nascita_non_trovati(), error = function(e) data.frame())
+                prov_non_indenni <- tryCatch(pipeline$animali_provenienza_non_indenni(), error = function(e) list())
+                nasc_non_indenni <- tryCatch(pipeline$animali_nascita_non_indenni(), error = function(e) list())
+                
+                manuale_nascita <- nrow(df_nasc)
+                manuale_provenienza <- nrow(df_prov)
+                nati_non_indenni <- conta_animali(nasc_non_indenni)
+                provenienti_non_indenni <- conta_animali(prov_non_indenni)
+                
+                riga_colore <- function(testo, valore) {
+                        colore <- ifelse(valore == 0, "green", "red")
+                        div(style = paste0("color: ", colore, ";"), paste(testo, valore))
+                }
+                
+                div(
+                        h4("Riepilogo controlli"),
+                        riga_colore("Numero di animali da controllare manualmente per nascita:", manuale_nascita),
+                        riga_colore("Numero di animali da controllare manualmente per provenienza:", manuale_provenienza),
+                        riga_colore("Numero di animali nati in province non indenni (per qualsiasi malattia):", nati_non_indenni),
+                        riga_colore("Numero di animali provenienti da province non indenni (per qualsiasi malattia):", provenienti_non_indenni)
+                )
+        })
+        
         # =====================================================================
         # SEZIONE 7: OUTPUT CONTROLLO MANUALE
         # =====================================================================
         # Tabelle e download per animali con dati geografici non validi
+        
+        output$ui_provenienza_non_trovata <- renderUI({
+                req(pipeline$df_provenienza_non_trovati())
+                df <- pipeline$df_provenienza_non_trovati()
+                
+                if (nrow(df) == 0) {
+                        return(div(style = "color: green;", 
+                                   "Non ci sono animali di provenienza nazionale con codice stabilimento di origine non mappabile"))
+                }
+                
+                tagList(
+                        DT::DTOutput("tabella_provenienza_non_trovata"),
+                        downloadButton("download_provenienza_non_trovata", "Scarica Excel")
+                )
+        })
         
         # Tabella: animali con comune provenienza non trovato
         output$tabella_provenienza_non_trovata <- DT::renderDT({
@@ -393,6 +444,21 @@ app_server <- function(input, output, session) {
                         openxlsx::write.xlsx(df, file)
                 }
         )
+        
+        output$ui_nascita_non_trovata <- renderUI({
+                req(pipeline$df_nascita_non_trovati())
+                df <- pipeline$df_nascita_non_trovati()
+                
+                if (nrow(df) == 0) {
+                        return(div(style = "color: green;", 
+                                   "Non ci sono animali nati in Italia con provincia nel marchio auricolare non mappabile"))
+                }
+                
+                tagList(
+                        DT::DTOutput("tabella_nascita_non_trovata"),
+                        downloadButton("download_nascita_non_trovata", "Scarica Excel")
+                )
+        })
         
         # Tabella: animali con provincia nascita non trovata
         output$tabella_nascita_non_trovata <- DT::renderDT({
