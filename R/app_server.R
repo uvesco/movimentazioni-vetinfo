@@ -251,8 +251,8 @@ app_server <- function(input, output, session) {
                         paste0("movimentazioni_debug_complete_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
                 },
                 content = function(file) {
-                        req(pipeline$dati_processati())
                         df <- pipeline$dati_processati()
+                        req(df)
                         openxlsx::write.xlsx(df, file)
                 }
         )

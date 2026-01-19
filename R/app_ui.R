@@ -128,8 +128,8 @@ app_ui <- function() {
 					
 					hr(),
 					h2("Debug"),
-					p("Download del file importato con tutti i merge effettuati (incluse le malattie), utile per la verifica manuale."),
-					downloadButton("download_debug_dataset", "Scarica dataset completo")
+					p("Download del file importato con tutti i merge effettuati (incluse le malattie) e con animali esteri, in formato .xlsx, utile per la verifica manuale."),
+					downloadButton("download_debug_dataset", "Scarica dataset completo (.xlsx)")
 				)
 			)
 			
