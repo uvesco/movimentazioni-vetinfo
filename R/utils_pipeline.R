@@ -2,30 +2,44 @@
 # FUNZIONI UTILITY PER LA PIPELINE DI ELABORAZIONE MOVIMENTAZIONI
 # =============================================================================
 # Questo file contiene le funzioni utility usate dalla pipeline di controllo
-# delle movimentazioni animali. Le funzioni gestiscono:
-# - Classificazione origine Italia/Estero
-# - Estrazione codici geografici (provincia nascita, comune provenienza)
-# - Merge con dati malattie
-# - Filtri per animali da zone non indenni
+# delle movimentazioni animali. 
+#
+# NOTA: A partire dalla refactoring per migliorare la leggibilità, alcune 
+# funzioni non sono più utilizzate nella pipeline principale (mod_pipeline_controlli.R)
+# che ora esegue i merge direttamente in modo lineare.
+#
+# FUNZIONI ANCORA IN USO:
+# - estrai_provincia_nascita: Estrazione provincia da marchio auricolare
+# - crea_dataframe_validazione: Creazione dataframe per validazione
+# - filtra_animali_non_indenni: Filtro animali da zone non indenni
+#
+# FUNZIONI DEPRECATE (ora integrate nella pipeline):
+# - classifica_origine: Logica ora inline nella pipeline
+# - estrai_comune_provenienza: Merge ora eseguito direttamente nella pipeline
+# - merge_malattie_con_prefisso: Merge ora eseguito direttamente nella pipeline
 # =============================================================================
 
 # =============================================================================
-# FUNZIONE 1: CLASSIFICA ORIGINE
+# FUNZIONE 1 [DEPRECATA]: CLASSIFICA ORIGINE
 # =============================================================================
+# NOTA: Questa funzione non è più utilizzata nella pipeline principale.
+# La logica è stata integrata direttamente in mod_pipeline_controlli.R per
+# migliorare la leggibilità del codice.
+#
 # Classifica ogni animale come proveniente da "italia" o "estero"
 # 
 # LOGICA DI CLASSIFICAZIONE (in ordine di priorità):
-# 1. Se il marchio auricolare inizia con "IT" → italia 2ch (il marchio auricolare non c'entra con la provenienza ma con la nascita)
+# 1. Se orig_stabilimento_cod non è nullo → indicatore provenienza italiana
 # 2. Se il motivo ingresso indica provenienza italiana (prov_italia=TRUE) → italia
 # 3. Se il motivo ingresso indica provenienza estera (prov_italia=FALSE) → estero
-# 4. Se il motivo ingresso è sconosciuto e non è IT → estero 2ch (NA)
+# 4. Altrimenti → NA (ignoto)
 #
 # PARAMETRI:
-# - df: dataframe con colonne 'capo_identificativo' e 'ingresso_motivo'
-# - motivi_ingresso_table: tabella decodifica con colonne 'Codice' e 'prov_italia'
+# - df: dataframe con colonne 'orig_stabilimento_cod' e 'ingresso_motivo'
+# - motivi_ingresso_table: tabella decodifica con colonne 'Descrizione' e 'prov_italia'
 #
 # RITORNA:
-# - df con nuova colonna 'origine' contenente "italia" o "estero" 2ch (TRUE="Italia, FALSE="Estero", NA = Ignoto -> da riconsiderare manualmente (terza specifica)
+# - df con nuova colonna 'orig_italia' (TRUE=Italia, FALSE=Estero, NA=Ignoto)
 # =============================================================================
 classifica_origine <- function(df, motivi_ingresso_table) {
 	# # Prima verifica: il marchio auricolare inizia con IT?
@@ -148,8 +162,12 @@ estrai_provincia_nascita <- function(capo_identificativo, df_province_table = NU
 }
 
 # =============================================================================
-# FUNZIONE 3: ESTRAI COMUNE PROVENIENZA
+# FUNZIONE 3 [DEPRECATA]: ESTRAI COMUNE PROVENIENZA
 # =============================================================================
+# NOTA: Questa funzione non è più utilizzata nella pipeline principale.
+# Il merge è ora eseguito direttamente in mod_pipeline_controlli.R per
+# migliorare la leggibilità del codice.
+#
 # Estrae il codice ISTAT del comune di provenienza dal codice stabilimento.
 #
 # FORMATO CODICE STABILIMENTO:
@@ -185,8 +203,12 @@ estrai_comune_provenienza <- function(orig_stabilimento_cod, df_stab_table) {
 }
 
 # =============================================================================
-# FUNZIONE 4: MERGE MALATTIE CON PREFISSO
+# FUNZIONE 4 [DEPRECATA]: MERGE MALATTIE CON PREFISSO
 # =============================================================================
+# NOTA: Questa funzione non è più utilizzata nella pipeline principale.
+# I merge con dati malattie sono ora eseguiti direttamente in mod_pipeline_controlli.R
+# per migliorare la leggibilità del codice.
+#
 # Esegue il merge tra dataframe animali e dati malattie, aggiungendo un prefisso
 # alle colonne delle malattie per distinguere provenienza da nascita.
 #
@@ -250,11 +272,11 @@ merge_malattie_con_prefisso <- function(df_animali, df_malattie, by_animali, by_
 # Usata per identificare animali che richiedono controllo manuale.
 #
 # CRITERI DI FILTRO:
-# - origine == "italia" (solo animali italiani)
+# - orig_italia == TRUE (solo animali italiani)
 # - campo_geografico è NA (codice non trovato/mappato)
 #
 # PARAMETRI:
-# - df_animali: dataframe animali con colonna 'origine'
+# - df_animali: dataframe animali con colonna 'orig_italia'
 # - campo_geografico: nome della colonna da verificare (es. "PRO_COM_T_prov")
 # - tipo_validazione: etichetta per il tipo di errore
 #
@@ -265,7 +287,7 @@ crea_dataframe_validazione <- function(df_animali, campo_geografico, tipo_valida
 	# Filtra: animali italiani con campo geografico NA
 	df_invalid <- df_animali[
 		is.na(df_animali[[campo_geografico]]) & 
-		df_animali$origine == "italia",
+		isTRUE(df_animali$orig_italia),
 	]
 	
 	# Aggiunge colonna descrittiva del tipo di errore

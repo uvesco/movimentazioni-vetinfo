@@ -51,8 +51,58 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			# -----------------------------------------------------------------
 			# STEP 1: Classificazione Italia/Estero
 			# -----------------------------------------------------------------
-			# Aggiunge colonna 'origine' con valori "italia" o "estero"
-			df <- classifica_origine(df, STATIC_MOTIVI_INGRESSO)
+			# Verifica se il codice stabilimento origine non è nullo
+			# (indicatore di provenienza italiana)
+			is_italian_establishment <- !is.na(df$orig_stabilimento_cod)
+			
+			# Normalizza stringhe per merge robusto (rimuove spazi, minuscolo)
+			normalize_string <- function(x) {
+				x |>
+					tolower() |>
+					gsub("\\s+", "", x = _) |>
+					trimws()
+			}
+			
+			# Prepara colonne normalizzate per il merge
+			df$ingresso_motivo_norm <- normalize_string(df$ingresso_motivo)
+			motivi_norm <- STATIC_MOTIVI_INGRESSO
+			motivi_norm$Descrizione_norm <- normalize_string(motivi_norm$Descrizione)
+			
+			# Merge con tabella motivi ingresso per ottenere flag prov_italia
+			df <- merge(
+				df,
+				motivi_norm[, c("Descrizione_norm", "prov_italia")],
+				by.x = "ingresso_motivo_norm",
+				by.y = "Descrizione_norm",
+				all.x = TRUE,
+				all.y = FALSE
+			)
+			
+			# Rinomina colonna per chiarezza
+			names(df)[names(df) == "prov_italia"] <- "prov_italia_motivo"
+			
+			# Rimuove colonna temporanea
+			df$ingresso_motivo_norm <- NULL
+			
+			# Calcola provenienza italia con logica AND stretta:
+			# - Se entrambi TRUE → TRUE (italia)
+			# - Se entrambi FALSE → FALSE (estero)
+			# - Altrimenti → NA (ignoto)
+			and_strict <- function(A, B) {
+				if (isTRUE(A) && isTRUE(B)) {
+					TRUE
+				} else if (isFALSE(A) && isFALSE(B)) {
+					FALSE
+				} else {
+					NA
+				}
+			}
+			
+			df$orig_italia <- mapply(
+				and_strict,
+				is_italian_establishment,
+				df$prov_italia_motivo
+			)
 			
 			# -----------------------------------------------------------------
 			# STEP 2: Estrazione provincia di nascita
@@ -63,37 +113,91 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			# -----------------------------------------------------------------
 			# STEP 3: Estrazione comune di provenienza
 			# -----------------------------------------------------------------
-			# Estrae PRO_COM_T dal codice stabilimento origine
-			df$PRO_COM_T_prov <- estrai_comune_provenienza(df$orig_stabilimento_cod, df_stab)
+			# Merge diretto con tabella stabilimenti per ottenere PRO_COM_T
+			# Questo collega i codici allevamento di provenienza con il comune
+			df <- merge(
+				df,
+				df_stab[, c("cod_stab", "PRO_COM_T")],
+				by.x = "orig_stabilimento_cod",
+				by.y = "cod_stab",
+				all.x = TRUE
+			)
+			
+			# Rinomina per distinguere da altre colonne PRO_COM_T
+			names(df)[names(df) == "PRO_COM_T"] <- "PRO_COM_T_prov"
 			
 			# -----------------------------------------------------------------
 			# STEP 4: Merge malattie sulla PROVENIENZA (comune ISTAT)
 			# -----------------------------------------------------------------
-			# Aggiunge colonne prov_<malattia> con status sanitario del comune
+			# Merge diretto con dati malattie dei comuni
 			df_comuni_malattie <- malattie[[grp]][["comuni"]]
 			if (!is.null(df_comuni_malattie) && nrow(df_comuni_malattie) > 0) {
-				df <- merge_malattie_con_prefisso(
+				# Identifica colonne geografiche da non rinominare
+				geo_cols <- c("COD_REG", "COD_UTS", "PRO_COM_T")
+				
+				# Colonne malattie da prefissare (escluse chiavi e geo)
+				disease_cols <- setdiff(
+					names(df_comuni_malattie),
+					c("PRO_COM_T", geo_cols)
+				)
+				
+				# Esegue merge
+				df <- merge(
 					df,
 					df_comuni_malattie,
-					by_animali = "PRO_COM_T_prov",  # Chiave animali
-					by_malattie = "PRO_COM_T",       # Chiave malattie
-					prefisso = "prov_"               # Prefisso colonne
+					by.x = "PRO_COM_T_prov",
+					by.y = "PRO_COM_T",
+					all.x = TRUE,
+					suffixes = c("", ".y")
 				)
+				
+				# Rimuove colonne geografiche duplicate
+				duplicate_geo_cols <- paste0(geo_cols, ".y")
+				df <- df[, !(names(df) %in% duplicate_geo_cols), drop = FALSE]
+				
+				# Aggiunge prefisso "prov_" alle colonne malattie
+				for (col in disease_cols) {
+					if (col %in% names(df)) {
+						names(df)[names(df) == col] <- paste0("prov_", col)
+					}
+				}
 			}
 			
 			# -----------------------------------------------------------------
 			# STEP 5: Merge malattie sulla NASCITA (codice UTS provincia)
 			# -----------------------------------------------------------------
-			# Aggiunge colonne nascita_<malattia> con status sanitario provincia
+			# Merge diretto con dati malattie delle province
 			df_province_malattie <- malattie[[grp]][["province"]]
 			if (!is.null(df_province_malattie) && nrow(df_province_malattie) > 0) {
-				df <- merge_malattie_con_prefisso(
+				# Identifica colonne geografiche da non rinominare
+				geo_cols <- c("COD_REG", "COD_UTS", "PRO_COM_T")
+				
+				# Colonne malattie da prefissare (escluse chiavi e geo)
+				disease_cols <- setdiff(
+					names(df_province_malattie),
+					c("COD_UTS", geo_cols)
+				)
+				
+				# Esegue merge
+				df <- merge(
 					df,
 					df_province_malattie,
-					by_animali = "cod_uts_nascita",  # Chiave animali
-					by_malattie = "COD_UTS",          # Chiave malattie
-					prefisso = "nascita_"             # Prefisso colonne
+					by.x = "cod_uts_nascita",
+					by.y = "COD_UTS",
+					all.x = TRUE,
+					suffixes = c("", ".y")
 				)
+				
+				# Rimuove colonne geografiche duplicate
+				duplicate_geo_cols <- paste0(geo_cols, ".y")
+				df <- df[, !(names(df) %in% duplicate_geo_cols), drop = FALSE]
+				
+				# Aggiunge prefisso "nascita_" alle colonne malattie
+				for (col in disease_cols) {
+					if (col %in% names(df)) {
+						names(df)[names(df) == col] <- paste0("nascita_", col)
+					}
+				}
 			}
 			
 			return(df)
@@ -109,9 +213,9 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			req(dati_processati())
 			df <- dati_processati()
 			
-			# Filtra: italiani con PRO_COM_T_prov = NA
+			# Filtra: italiani (orig_italia == TRUE) con PRO_COM_T_prov = NA
 			animali_invalid <- df[
-				is.na(df$PRO_COM_T_prov) & df$origine == "italia",
+				is.na(df$PRO_COM_T_prov) & isTRUE(df$orig_italia),
 				"capo_identificativo"
 			]
 			
@@ -143,9 +247,9 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			req(dati_processati())
 			df <- dati_processati()
 			
-			# Filtra: italiani con cod_uts_nascita = NA
+			# Filtra: italiani (orig_italia == TRUE) con cod_uts_nascita = NA
 			animali_invalid <- df[
-				is.na(df$cod_uts_nascita) & df$origine == "italia",
+				is.na(df$cod_uts_nascita) & isTRUE(df$orig_italia),
 				"capo_identificativo"
 			]
 			
