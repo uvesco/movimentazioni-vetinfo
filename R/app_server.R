@@ -253,6 +253,15 @@ app_server <- function(input, output, session) {
                 content = function(file) {
                         df <- pipeline$dati_processati()
                         req(df)
+                        if (nrow(df) == 0) {
+                                shiny::showNotification(
+                                        "Nessun dato disponibile per il download.",
+                                        type = "warning",
+                                        duration = 6,
+                                        session = session
+                                )
+                                stop("Nessun dato disponibile per il download.")
+                        }
                         tryCatch(
                                 openxlsx::write.xlsx(df, file),
                                 error = function(e) {
@@ -262,7 +271,7 @@ app_server <- function(input, output, session) {
                                                 duration = 8,
                                                 session = session
                                         )
-                                        NULL
+                                        stop(e$message)
                                 }
                         )
                 }
