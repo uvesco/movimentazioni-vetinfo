@@ -256,7 +256,13 @@ app_server <- function(input, output, session) {
                         tryCatch(
                                 openxlsx::write.xlsx(df, file),
                                 error = function(e) {
-                                        stop("Errore durante l'esportazione del file debug: ", e$message)
+                                        shiny::showNotification(
+                                                paste0("Errore durante l'esportazione del file debug: ", e$message),
+                                                type = "error",
+                                                duration = 8,
+                                                session = session
+                                        )
+                                        NULL
                                 }
                         )
                 }
