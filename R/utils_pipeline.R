@@ -33,8 +33,12 @@
 # - Se il codice ha meno di 5 caratteri, viene restituito così com'è dopo normalizzazione.
 # - I valori non character vengono convertiti e le stringhe vuote diventano NA.
 normalize_stab_code <- function(x) {
-	x <- toupper(trimws(as.character(x)))
-	ifelse(is.na(x) | x == "", NA_character_, substr(x, 1, 5))
+	normalized <- toupper(trimws(as.character(x)))
+	normalized[normalized == ""] <- NA_character_
+	prefix <- substr(normalized, 1, 5)
+	short_idx <- !is.na(normalized) & nchar(normalized) < 5
+	prefix[short_idx] <- normalized[short_idx]
+	prefix
 }
 
 # =============================================================================
