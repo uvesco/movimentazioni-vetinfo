@@ -370,7 +370,12 @@ app_server <- function(input, output, session) {
                         if (length(lista) == 0) {
                                 return(0)
                         }
-                        ids <- unlist(lapply(lista, function(df_item) df_item$capo_identificativo))
+                        ids <- unlist(lapply(lista, function(df_item) {
+                                if (!"capo_identificativo" %in% names(df_item)) {
+                                        return(character(0))
+                                }
+                                df_item$capo_identificativo
+                        }))
                         ids <- ids[!is.na(ids)]
                         length(unique(ids))
                 }
