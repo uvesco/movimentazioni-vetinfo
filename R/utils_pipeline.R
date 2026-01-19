@@ -184,8 +184,13 @@ estrai_provincia_nascita <- function(capo_identificativo, df_province_table = NU
 # =============================================================================
 estrai_comune_provenienza <- function(orig_stabilimento_cod, df_stab_table) {
 	# Crea dataframe temporaneo per il merge
+	normalize_stab_code <- function(x) {
+		x <- toupper(trimws(as.character(x)))
+		ifelse(is.na(x) | x == "", NA_character_, substr(x, 1, 5))
+	}
+	
 	result <- data.frame(
-		orig_stabilimento_cod = orig_stabilimento_cod,
+		orig_stabilimento_cod = normalize_stab_code(orig_stabilimento_cod),
 		stringsAsFactors = FALSE
 	)
 	
