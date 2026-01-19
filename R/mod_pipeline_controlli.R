@@ -123,10 +123,10 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 				by.y = "cod_stab",
 				all.x = TRUE
 			)
+			df$orig_stabilimento_cod_norm <- NULL
 			
 			# Rinomina per distinguere da altre colonne PRO_COM_T
 			names(df)[names(df) == "PRO_COM_T"] <- "PRO_COM_T_prov"
-			df$orig_stabilimento_cod_norm <- NULL
 			
 			# -----------------------------------------------------------------
 			# STEP 4: Merge malattie sulla PROVENIENZA (comune ISTAT)
