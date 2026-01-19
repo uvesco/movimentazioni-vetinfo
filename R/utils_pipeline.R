@@ -282,22 +282,24 @@ merge_malattie_con_prefisso <- function(df_animali, df_malattie, by_animali, by_
 # - campo_geografico è NA (codice non trovato/mappato)
 #
 # PARAMETRI:
-# - df_animali: dataframe animali con colonna 'orig_italia'
+# - df_animali: dataframe animali con colonna Italia (default orig_italia)
 # - campo_geografico: nome della colonna da verificare (es. "orig_comune_cod")
 # - tipo_validazione: etichetta per il tipo di errore
+# - colonna_italia: nome colonna booleana per filtro Italia (default "orig_italia")
 #
 # RITORNA:
 # - dataframe con animali non validi e colonna tipo_errore
 # =============================================================================
-crea_dataframe_validazione <- function(df_animali, campo_geografico, tipo_validazione) {
+crea_dataframe_validazione <- function(df_animali, campo_geografico, tipo_validazione, colonna_italia = "orig_italia") {
 	# Filtra: animali italiani con campo geografico NA
+	is_italia <- df_animali[[colonna_italia]]
 	df_invalid <- df_animali[
 		is.na(df_animali[[campo_geografico]]) & 
-		df_animali$orig_italia == TRUE & !is.na(df_animali$orig_italia),
+		is_italia == TRUE & !is.na(is_italia),
 	]
 	
 	# Aggiunge colonna descrittiva del tipo di errore
-	df_invalid$tipo_errore <- tipo_validazione
+	df_invalid$tipo_errore <- rep(tipo_validazione, nrow(df_invalid))
 	
 	return(df_invalid)
 }

@@ -35,13 +35,13 @@ Questo PR implementa tutti gli 8 requisiti richiesti per la pipeline di controll
 - **Vettore**: `casi_provenienza_non_trovati` (solo ID animali)
 - **DataFrame**: `df_provenienza_non_trovati` (dati completi)
 - **Download**: Excel disponibile nel tab "Controllo Manuale"
-- **Tab**: "Controllo Manuale" → sezione "Comune di provenienza non trovato"
+- **Tab**: "Controllo Manuale" → sezione "Animali di provenienza nazionale con codice stabilimento di origine non mappabile"
 
 #### 6. Animali Italiani - Nascita Non Valida
 - **Vettore**: `casi_nascita_non_trovati` (solo ID animali)
 - **DataFrame**: `df_nascita_non_trovati` (dati completi)
 - **Download**: Excel disponibile nel tab "Controllo Manuale"
-- **Tab**: "Controllo Manuale" → sezione "Provincia di nascita non trovata"
+- **Tab**: "Controllo Manuale" → sezione "Animali nati in Italia con provincia nel marchio auricolare non mappabile"
 
 #### 7. Tab "Provenienze"
 - **Contenuto**: Una tabella per ogni malattia con animali da comuni non indenni
@@ -146,7 +146,7 @@ source("tests/manual_test_pipeline.R")
 **Soluzione**: Verifica che openxlsx sia installato: `install.packages("openxlsx")`
 
 ### 4. Marchi auricolari non riconosciuti
-**Sintomo**: Molti animali in "Provincia di nascita non trovata"
+**Sintomo**: Molti animali in "Animali nati in Italia con provincia nel marchio auricolare non mappabile"
 **Soluzione**: Potrebbe essere necessario aggiustare il pattern di estrazione in `estrai_provincia_nascita()`
 
 ## Prossimi Passi Suggeriti

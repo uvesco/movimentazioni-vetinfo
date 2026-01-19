@@ -94,7 +94,10 @@ col_connect <- c(
 	"orig_uts_nome",
 	"orig_comune_nome",
 	"nascita_italia",
-	"nascita_uts_cod")
+	"nascita_reg_cod",
+	"nascita_reg_nome",
+	"nascita_uts_cod",
+	"nascita_uts_nome")
 
 # nomi dei fogli che distinguono l'approccio provincia indenne dall'approccio a blocchi
 tipi_files_malattie_fogli <- list(

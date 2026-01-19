@@ -212,6 +212,13 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			if ("orig_comune_cod" %in% names(df)) {
 				df$orig_comune_nome <- df_comuni$COMUNE[match(df$orig_comune_cod, df_comuni$PRO_COM_T)]
 			}
+			if ("nascita_uts_cod" %in% names(df)) {
+				df$nascita_reg_cod <- df_province$COD_REG[match(df$nascita_uts_cod, df_province$COD_UTS)]
+				df$nascita_uts_nome <- df_province$DEN_UTS[match(df$nascita_uts_cod, df_province$COD_UTS)]
+			}
+			if ("nascita_reg_cod" %in% names(df)) {
+				df$nascita_reg_nome <- df_regioni$DEN_REG[match(df$nascita_reg_cod, df_regioni$COD_REG)]
+			}
 			
 			# Ordina colonne per leggibilità
 			current_cols <- names(df)
@@ -228,7 +235,10 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			orig_cols_ordered <- c(orig_cols_base, orig_geo_order[orig_geo_order %in% orig_cols])
 			prov_cols <- current_cols[grepl("^prov_", current_cols)]
 			nascita_cols <- current_cols[grepl("^nascita_", current_cols)]
-			nascita_disease_cols <- setdiff(nascita_cols, c("nascita_italia", "nascita_uts_cod"))
+			nascita_disease_cols <- setdiff(
+				nascita_cols,
+				c("nascita_italia", "nascita_reg_cod", "nascita_reg_nome", "nascita_uts_cod", "nascita_uts_nome")
+			)
 			other_cols <- current_cols[!current_cols %in% c(orig_cols, prov_cols, nascita_cols)]
 			
 			new_order <- c(
@@ -236,7 +246,10 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 				orig_cols_ordered,
 				prov_cols,
 				intersect("nascita_italia", current_cols),
+				intersect("nascita_reg_cod", current_cols),
+				intersect("nascita_reg_nome", current_cols),
 				intersect("nascita_uts_cod", current_cols),
+				intersect("nascita_uts_nome", current_cols),
 				nascita_disease_cols
 			)
 			df <- df[, unique(new_order), drop = FALSE]
@@ -288,9 +301,9 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			req(dati_processati())
 			df <- dati_processati()
 			
-			# Filtra: italiani (orig_italia == TRUE) con nascita_uts_cod = NA
+			# Filtra: nati in Italia (nascita_italia == TRUE) con nascita_uts_cod = NA
 			animali_invalid <- df[
-				is.na(df$nascita_uts_cod) & df$orig_italia == TRUE & !is.na(df$orig_italia),
+				is.na(df$nascita_uts_cod) & df$nascita_italia == TRUE & !is.na(df$nascita_italia),
 				"capo_identificativo"
 			]
 			
@@ -305,7 +318,8 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			df_invalid <- crea_dataframe_validazione(
 				df,
 				campo_geografico = "nascita_uts_cod",
-				tipo_validazione = "provincia_nascita_non_valida"
+				tipo_validazione = "provincia_nascita_non_valida",
+				colonna_italia = "nascita_italia"
 			)
 			
 			return(df_invalid)
