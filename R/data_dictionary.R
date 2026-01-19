@@ -86,8 +86,15 @@ col_standard <- c(
 # colonne generate per il controllo malattie in utils_pipeline.R
 col_connect <- c(
 	"orig_italia",
+	"orig_italia_motivo",
+	"orig_reg_cod",
+	"orig_uts_cod",
+	"orig_comune_cod",
+	"orig_reg_nome",
+	"orig_uts_nome",
+	"orig_comune_nome",
 	"nascita_italia",
-	"nascita_cod_uts")
+	"nascita_uts_cod")
 
 # nomi dei fogli che distinguono l'approccio provincia indenne dall'approccio a blocchi
 tipi_files_malattie_fogli <- list(

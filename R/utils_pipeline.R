@@ -61,7 +61,7 @@ normalize_stab_code <- function(x) {
 # - motivi_ingresso_table: tabella decodifica con colonne 'Descrizione' e 'prov_italia'
 #
 # RITORNA:
-# - df con nuova colonna 'orig_italia' (TRUE=Italia, FALSE=Estero, NA=Ignoto)
+# - df con nuove colonne 'orig_italia' e 'orig_italia_motivo'
 # =============================================================================
 classifica_origine <- function(df, motivi_ingresso_table) {
 	# # Prima verifica: il marchio auricolare inizia con IT?
@@ -84,42 +84,26 @@ classifica_origine <- function(df, motivi_ingresso_table) {
 	}
 	
 	
-	# Creo copie normalizzate per il join
+	# Creo copie normalizzate per il match su codice o descrizione
 	df$ingresso_motivo_norm <- normalize_string(df$ingresso_motivo)
+	motivi_ingresso_table$prov_italia <- as.logical(motivi_ingresso_table$prov_italia)
+	motivi_ingresso_table$Codice_norm <- normalize_string(motivi_ingresso_table$Codice)
 	motivi_ingresso_table$Descrizione_norm <- normalize_string(motivi_ingresso_table$Descrizione)
 	
-	# Merge robusto
-	df <- merge(
-		df,
-		motivi_ingresso_table[, c("Descrizione_norm", "prov_italia")],
-		by.x = "ingresso_motivo_norm",
-		by.y = "Descrizione_norm",
-		all.x = TRUE,
-		all.y = FALSE
-	)
+	lookup_cod <- setNames(motivi_ingresso_table$prov_italia, motivi_ingresso_table$Codice_norm)
+	lookup_desc <- setNames(motivi_ingresso_table$prov_italia, motivi_ingresso_table$Descrizione_norm)
 	
-	# rinomino prov_italia con prov_italia_motivo
-	names(df)[names(df) == "prov_italia"] <- "prov_italia_motivo"
+	df$orig_italia_motivo <- lookup_cod[df$ingresso_motivo_norm]
+	missing_idx <- is.na(df$orig_italia_motivo)
+	df$orig_italia_motivo[missing_idx] <- lookup_desc[df$ingresso_motivo_norm][missing_idx]
+	
+	missing_idx <- is.na(df$orig_italia_motivo)
+	df$orig_italia_motivo[missing_idx] <- is_italian_establishment[missing_idx]
 	
 	# Elimino modifica temporanea
 	df$ingresso_motivo_norm <- NULL
 	
-# prov_italia definitivo
-	and_strict <- function(A, B) {
-		if (isTRUE(A) && isTRUE(B)) {
-			TRUE
-		} else if (isFALSE(A) && isFALSE(B)) {
-			FALSE
-		} else {
-			NA
-		}
-	}
-	
-	df$orig_italia <- mapply(
-		and_strict,
-		is_italian_establishment,
-		df$prov_italia_motivo
-	)
+	df$orig_italia <- df$orig_italia_motivo
 	
 
 	
@@ -299,7 +283,7 @@ merge_malattie_con_prefisso <- function(df_animali, df_malattie, by_animali, by_
 #
 # PARAMETRI:
 # - df_animali: dataframe animali con colonna 'orig_italia'
-# - campo_geografico: nome della colonna da verificare (es. "PRO_COM_T_prov")
+# - campo_geografico: nome della colonna da verificare (es. "orig_comune_cod")
 # - tipo_validazione: etichetta per il tipo di errore
 #
 # RITORNA:

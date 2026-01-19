@@ -19,9 +19,9 @@ test_df <- data.frame(
 result <- classifica_origine(test_df, STATIC_MOTIVI_INGRESSO)
 cat("Input motivi:", test_df$ingresso_motivo, "\n")
 cat("Input ear tags:", test_df$capo_identificativo, "\n")
-cat("Output origine:", result$origine, "\n")
-cat("Expected: italia, estero, estero, italia, estero, estero, italia\n")
-cat("(Note: 'MOVIMENTO' is unknown motivo but IT ear tag -> italia)\n")
+cat("Output orig_italia:", result$orig_italia, "\n")
+cat("Expected: TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE\n")
+cat("(Note: 'MOVIMENTO' is unknown motivo but IT ear tag -> TRUE)\n")
 cat("✓ Test 1 completed\n\n")
 
 # Test 2: estrai_provincia_nascita (with df_province for COD_PROV_STORICO to COD_UTS mapping)
