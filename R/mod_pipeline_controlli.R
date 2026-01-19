@@ -115,10 +115,6 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			# -----------------------------------------------------------------
 			# Merge diretto con tabella stabilimenti per ottenere PRO_COM_T
 			# Questo collega i codici allevamento di provenienza con il comune
-			normalize_stab_code <- function(x) {
-				x <- toupper(trimws(as.character(x)))
-				ifelse(is.na(x) | x == "", NA_character_, substr(x, 1, 5))
-			}
 			df$orig_stabilimento_cod_norm <- normalize_stab_code(df$orig_stabilimento_cod)
 			df <- merge(
 				df,
