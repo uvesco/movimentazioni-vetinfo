@@ -9,6 +9,7 @@
 # che ora esegue i merge direttamente in modo lineare.
 #
 # FUNZIONI ANCORA IN USO:
+# - normalize_stab_code: Normalizzazione prefissi codici stabilimento
 # - estrai_provincia_nascita: Estrazione provincia da marchio auricolare
 # - crea_dataframe_validazione: Creazione dataframe per validazione
 # - filtra_animali_non_indenni: Filtro animali da zone non indenni
