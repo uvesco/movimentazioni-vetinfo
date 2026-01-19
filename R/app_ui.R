@@ -6,7 +6,7 @@
 # - Input: caricamento file movimentazioni
 # - Help: documentazione e guida utente (sempre visibile)
 # - Tab dinamici: Controllo Manuale, Provenienze, Nascite, Output
-#   (mostrati solo quando necessario dopo il caricamento dati)
+#   (mostrati solo quando necessario dopo il caricamento dati) 
 # =============================================================================
 
 app_ui <- function() {
