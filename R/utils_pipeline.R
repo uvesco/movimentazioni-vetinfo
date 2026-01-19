@@ -36,6 +36,7 @@ classifica_origine <- function(df, motivi_ingresso_table) {
 	
 	# prima verifica: orig_stabilimento_cod non è nullo
 	
+	is_italian_establishment <- !is.na(df$orig_stabilimento_cod)
 	
 	# Seconda verifica: lookup nella tabella motivi ingresso
 	# Merge per ottenere il flag prov_italia dal codice motivo
@@ -57,32 +58,34 @@ classifica_origine <- function(df, motivi_ingresso_table) {
 		motivi_ingresso_table[, c("Descrizione_norm", "prov_italia")],
 		by.x = "ingresso_motivo_norm",
 		by.y = "Descrizione_norm",
-		all.x = TRUE
+		all.x = TRUE,
+		all.y = FALSE
 	)
+	
+	# rinomino prov_italia con prov_italia_motivo
+	names(df)[names(df) == "prov_italia"] <- "prov_italia_motivo"
 	
 	# Elimino modifica temporanea
 	df$ingresso_motivo_norm <- NULL
 	
-
+# prov_italia definitivo
+	and_strict <- function(A, B) {
+		if (isTRUE(A) && isTRUE(B)) {
+			TRUE
+		} else if (isFALSE(A) && isFALSE(B)) {
+			FALSE
+		} else {
+			NA
+		}
+	}
 	
-	
-	# Crea il campo origine applicando la logica di priorità:
-	# se cod
-	# - IT nel marchio → sempre italia
-	# - Altrimenti usa prov_italia dalla tabella decodifica
-	# - Se NA (motivo sconosciuto) → estero per sicurezza
-	df$origine <- ifelse(
-		is_italian_ear_tag,
-		"italia",
-		ifelse(
-			!is.na(df$prov_italia) & df$prov_italia == TRUE,
-			"italia",
-			"estero"
-		)
+	df$orig_italia <- mapply(
+		and_strict,
+		is_italian_establishment,
+		df$prov_italia_motivo
 	)
 	
-	# Rimuove la colonna temporanea prov_italia
-	df$prov_italia <- NULL
+
 	
 	return(df)
 }
@@ -113,8 +116,8 @@ estrai_provincia_nascita <- function(capo_identificativo, df_province_table = NU
 	# Converte a carattere per operazioni su stringhe
 	ear_tag <- as.character(capo_identificativo)
 	
-	# Verifica se inizia con IT seguito da 3 cifre
-	is_italian <- grepl("^IT[0-9]{3}", ear_tag, ignore.case = TRUE)
+	# Verifica se inizia con IT
+	is_italian <- grepl("^IT", ear_tag, ignore.case = TRUE)
 	
 	# Estrae le 3 cifre dopo IT (posizioni 3-5)
 	# Questo è il COD_PROV_STORICO (codice provincia storico)
@@ -125,9 +128,15 @@ estrai_provincia_nascita <- function(capo_identificativo, df_province_table = NU
 	)
 	
 	# Se abbiamo la tabella province, mappa COD_PROV_STORICO → COD_UTS
-	if (!is.null(df_province_table)) {
+
 		# Crea lookup table (rimuove duplicati per efficienza)
 		lookup <- df_province_table[, c("COD_PROV_STORICO", "COD_UTS")]
+		# rimuove i duplicati completi
+		loookup <- lookup[!duplicated(lookup[, c("COD_PROV_STORICO", "COD_UTS")]), ]
+		# in caso di ulteriore presenza di cod_prov_storico duplicati, impongo COD_UTS = NA in modo da forzare un controllo manuale
+		dup_prov <- unique(lookup$COD_PROV_STORICO[duplicated(lookup$COD_PROV_STORICO)])
+		lookup$COD_UTS[lookup$COD_PROV_STORICO %in% dup_prov] <- NA_character_
+		# elimino nuovamente i duplicati
 		lookup <- lookup[!duplicated(lookup$COD_PROV_STORICO), ]
 		
 		# Usa match() per preservare l'ordine originale delle righe
@@ -135,10 +144,7 @@ estrai_provincia_nascita <- function(capo_identificativo, df_province_table = NU
 		cod_uts <- lookup$COD_UTS[match_idx]
 		
 		return(cod_uts)
-	} else {
-		# Senza tabella, ritorna il codice raw (backward compatibility)
-		return(cod_prov_storico)
-	}
+
 }
 
 # =============================================================================
@@ -148,7 +154,7 @@ estrai_provincia_nascita <- function(capo_identificativo, df_province_table = NU
 #
 # FORMATO CODICE STABILIMENTO:
 # - Struttura: <3+ cifre><2 lettere sigla provincia>
-# - Esempio: 001TO → comune nel comune di Torino
+# - Esempio: 001TO → comune nella provincia di Torino
 # - La mappatura avviene tramite df_stab (tabella prefissi stabilimento)
 #
 # PARAMETRI:
@@ -174,7 +180,7 @@ estrai_comune_provenienza <- function(orig_stabilimento_cod, df_stab_table) {
 		all.x = TRUE  # Mantiene tutti i record, anche senza match
 	)
 	
-	# Ritorna solo la colonna PRO_COM_T
+	# Ritorna solo la colonna PRO_COM_T #2do verificare che non servano le province
 	return(result$PRO_COM_T)
 }
 
