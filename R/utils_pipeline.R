@@ -287,7 +287,7 @@ crea_dataframe_validazione <- function(df_animali, campo_geografico, tipo_valida
 	# Filtra: animali italiani con campo geografico NA
 	df_invalid <- df_animali[
 		is.na(df_animali[[campo_geografico]]) & 
-		isTRUE(df_animali$orig_italia),
+		df_animali$orig_italia == TRUE & !is.na(df_animali$orig_italia),
 	]
 	
 	# Aggiunge colonna descrittiva del tipo di errore

@@ -57,10 +57,10 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			
 			# Normalizza stringhe per merge robusto (rimuove spazi, minuscolo)
 			normalize_string <- function(x) {
-				x |>
-					tolower() |>
-					gsub("\\s+", "", x = _) |>
-					trimws()
+				x <- tolower(x)
+				x <- gsub("\\s+", "", x)
+				x <- trimws(x)
+				x
 			}
 			
 			# Prepara colonne normalizzate per il merge
@@ -215,7 +215,7 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			
 			# Filtra: italiani (orig_italia == TRUE) con PRO_COM_T_prov = NA
 			animali_invalid <- df[
-				is.na(df$PRO_COM_T_prov) & isTRUE(df$orig_italia),
+				is.na(df$PRO_COM_T_prov) & df$orig_italia == TRUE & !is.na(df$orig_italia),
 				"capo_identificativo"
 			]
 			
@@ -249,7 +249,7 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			
 			# Filtra: italiani (orig_italia == TRUE) con cod_uts_nascita = NA
 			animali_invalid <- df[
-				is.na(df$cod_uts_nascita) & isTRUE(df$orig_italia),
+				is.na(df$cod_uts_nascita) & df$orig_italia == TRUE & !is.na(df$orig_italia),
 				"capo_identificativo"
 			]
 			
