@@ -16,36 +16,30 @@
 
 ### 1. Merge per Stabilire Provenienza Italiana
 ✅ **Implementato correttamente**
-- Merge tra `ingresso_motivo` e `STATIC_MOTIVI_INGRESSO` funziona
-- Logica AND stretta implementata:
-  - `is_italian_establishment` = !is.na(orig_stabilimento_cod)
-  - `prov_italia_motivo` = flag dalla tabella motivi ingresso
-  - `orig_italia` = AND stretta tra i due (TRUE solo se entrambi TRUE)
-- Gestione corretta dei valori NA
+- Match tra `ingresso_motivo` e `STATIC_MOTIVI_INGRESSO` su codice o descrizione
+- `orig_italia_motivo` valorizzato con fallback su `orig_stabilimento_cod`
+- `orig_italia` coerente con `orig_italia_motivo` (TRUE/FALSE)
 
 **Codice:**
 ```r
 # Verifica stabilimento italiano
 is_italian_establishment <- !is.na(df$orig_stabilimento_cod)
 
-# Merge con motivi ingresso
-df <- merge(
-	df,
-	motivi_norm[, c("Descrizione_norm", "prov_italia")],
-	by.x = "ingresso_motivo_norm",
-	by.y = "Descrizione_norm",
-	all.x = TRUE,
-	all.y = FALSE
-)
+# Lookup motivi ingresso su codice o descrizione
+lookup_cod <- setNames(motivi_norm$prov_italia, motivi_norm$Codice_norm)
+lookup_desc <- setNames(motivi_norm$prov_italia, motivi_norm$Descrizione_norm)
 
-# Calcola origine
-df$orig_italia <- mapply(and_strict, is_italian_establishment, df$prov_italia_motivo)
+df$orig_italia_motivo <- lookup_cod[df$ingresso_motivo_norm]
+df$orig_italia_motivo[is.na(df$orig_italia_motivo)] <- lookup_desc[df$ingresso_motivo_norm][is.na(df$orig_italia_motivo)]
+df$orig_italia_motivo[is.na(df$orig_italia_motivo)] <- is_italian_establishment[is.na(df$orig_italia_motivo)]
+
+df$orig_italia <- df$orig_italia_motivo
 ```
 
 ### 2. Collegamento Codici Allevamento → Comune di Provenienza
 ✅ **Implementato correttamente**
 - Merge diretto tra `orig_stabilimento_cod` e `df_stab`
-- Campo `PRO_COM_T_prov` contiene il codice ISTAT del comune di provenienza
+- Campo `orig_comune_cod` contiene il codice ISTAT del comune di provenienza
 - Left join mantiene tutti gli animali anche senza match
 
 **Codice:**
@@ -58,7 +52,7 @@ df <- merge(
 	by.y = "cod_stab",
 	all.x = TRUE
 )
-names(df)[names(df) == "PRO_COM_T"] <- "PRO_COM_T_prov"
+names(df)[names(df) == "PRO_COM_T"] <- "orig_comune_cod"
 ```
 
 ### 3. Collegamento Provincia di Nascita → Dati Malattie
@@ -70,13 +64,13 @@ names(df)[names(df) == "PRO_COM_T"] <- "PRO_COM_T_prov"
 **Codice:**
 ```r
 # Estrazione (funzione mantenuta)
-df$cod_uts_nascita <- estrai_provincia_nascita(df$capo_identificativo, df_province)
+df$nascita_uts_cod <- estrai_provincia_nascita(df$capo_identificativo, df_province)
 
 # Merge diretto
 df <- merge(
 	df,
 	df_province_malattie,
-	by.x = "cod_uts_nascita",
+	by.x = "nascita_uts_cod",
 	by.y = "COD_UTS",
 	all.x = TRUE,
 	suffixes = c("", ".y")
@@ -101,7 +95,7 @@ for (col in disease_cols) {
 df <- merge(
 	df,
 	df_comuni_malattie,
-	by.x = "PRO_COM_T_prov",
+	by.x = "orig_comune_cod",
 	by.y = "PRO_COM_T",
 	all.x = TRUE,
 	suffixes = c("", ".y")
@@ -122,7 +116,7 @@ for (col in disease_cols) {
 ### Prima della Refactoring
 ```r
 df <- classifica_origine(df, STATIC_MOTIVI_INGRESSO)
-df$PRO_COM_T_prov <- estrai_comune_provenienza(df$orig_stabilimento_cod, df_stab)
+df$orig_comune_cod <- estrai_comune_provenienza(df$orig_stabilimento_cod, df_stab)
 df <- merge_malattie_con_prefisso(df, df_comuni_malattie, ...)
 ```
 ❌ Necessario saltare tra file per capire cosa succede
@@ -138,7 +132,7 @@ df$orig_italia <- mapply(and_strict, ...)
 
 # STEP 3: Estrazione comune di provenienza
 df <- merge(df, df_stab[...], ...)
-names(df)[names(df) == "PRO_COM_T"] <- "PRO_COM_T_prov"
+names(df)[names(df) == "PRO_COM_T"] <- "orig_comune_cod"
 
 # STEP 4: Merge malattie sulla PROVENIENZA
 df <- merge(df, df_comuni_malattie, ...)
