@@ -1,0 +1,26 @@
+Scenario 1 – nessun animale da stabilimenti in restrizione per bovini
+Scarica fake_bdn_bovini_scenario1.xlsx
+
+Scenario 2 – animali da stabilimenti in restrizione per bovini
+Scarica fake_bdn_bovini_scenario2.xlsx
+
+Scenario 3 – animali da stabilimenti in restrizione per altro gruppo specie (ovicaprini)
+(province con restrizione solo per Ind_BRC-OV-CP, indenni per bovini)
+Scarica fake_bdn_bovini_scenario3.xlsx
+
+Scenario 4 – animali da stabilimenti non collegabili a un comune
+(AZIENDA PROVENIENZA con codici tipo 999XX000 non presenti in df_prefissi_stab)
+Scarica fake_bdn_bovini_scenario4.xlsx
+
+Scenario 5 – animali nati in province in restrizione per bovini
+
+AZIENDA PROVENIENZA in provincia indenne
+
+CODICE CAPO con provincia nascita codificata in provincia in restrizione
+Scarica fake_bdn_bovini_scenario5.xlsx
+
+Scenario 6 – animali nati in province non collegabili alle province attuali
+
+Stabilimenti in province indenni
+
+CODICE CAPO con “provincia” > max COD_PROV_STORICO in BRC_TBC (quindi non matchabile)

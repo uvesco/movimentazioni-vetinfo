@@ -5,6 +5,7 @@ library(readxl)                              # pacchetto per leggere file Excel
 library(dplyr)                               # pacchetto per la manipolazione dei dati
 library(bsicons)
 library(DT)
+library(openxlsx)                            # pacchetto per scrivere file Excel
 
 # esegue il sourcing dei file necessari
 source("global.R")                             # variabili globali e funzioni ausiliarie")

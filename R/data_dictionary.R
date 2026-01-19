@@ -1,7 +1,7 @@
 # Nomi delle colonne standard e originali per i diversi gruppi di specie
 # Questo file deve essere caricato prima di altri moduli che usano queste variabili
 
-# colonne originali input ovicaprini
+# colonne originali input 
 
 col_orig_gruppi <- list(
 	ovicaprini = c("ROWNUM", "REGIONE", "CODICE ASL", "ASL DENOMINAZIONE",
@@ -82,6 +82,12 @@ col_standard <- c(
 	"orig_regione_cod",
 	"orig_asl_cod"
 )
+
+# colonne generate per il controllo malattie in utils_pipeline.R
+col_connect <- c(
+	"orig_italia",
+	"nascita_italia",
+	"nascita_cod_uts")
 
 # nomi dei fogli che distinguono l'approccio provincia indenne dall'approccio a blocchi
 tipi_files_malattie_fogli <- list(
