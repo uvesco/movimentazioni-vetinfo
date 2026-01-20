@@ -67,15 +67,18 @@ parse_ingresso_date <- function(values) {
 	parsed <- suppressWarnings(as.Date(valori))
 	if (any(is.na(parsed))) {
 		parsed_alt <- suppressWarnings(as.Date(valori, format = "%d/%m/%Y"))
-		parsed[is.na(parsed) & !is.na(parsed_alt)] <- parsed_alt[is.na(parsed) & !is.na(parsed_alt)]
+		aggiorna_idx <- is.na(parsed) & !is.na(parsed_alt)
+		parsed[aggiorna_idx] <- parsed_alt[aggiorna_idx]
 	}
 	if (any(is.na(parsed))) {
 		parsed_alt <- suppressWarnings(as.Date(valori, format = "%d-%m-%Y"))
-		parsed[is.na(parsed) & !is.na(parsed_alt)] <- parsed_alt[is.na(parsed) & !is.na(parsed_alt)]
+		aggiorna_idx <- is.na(parsed) & !is.na(parsed_alt)
+		parsed[aggiorna_idx] <- parsed_alt[aggiorna_idx]
 	}
 	if (any(is.na(parsed))) {
 		parsed_alt <- suppressWarnings(as.Date(valori, format = "%Y/%m/%d"))
-		parsed[is.na(parsed) & !is.na(parsed_alt)] <- parsed_alt[is.na(parsed) & !is.na(parsed_alt)]
+		aggiorna_idx <- is.na(parsed) & !is.na(parsed_alt)
+		parsed[aggiorna_idx] <- parsed_alt[aggiorna_idx]
 	}
 	numeric_values <- suppressWarnings(as.numeric(valori))
 	numeric_idx <- is.na(parsed) & !is.na(numeric_values)
