@@ -316,13 +316,21 @@ app_server <- function(input, output, session) {
                 grp <- gruppo()
                 req(df, grp)
                 
+                excel_epoch <- as.Date("1899-12-30")
+                parse_ingresso_date <- function(values) {
+                        if (inherits(values, "Date")) {
+                                return(values)
+                        }
+                        parsed <- suppressWarnings(as.Date(values))
+                        if (all(is.na(parsed)) && is.numeric(values)) {
+                                parsed <- suppressWarnings(as.Date(values, origin = excel_epoch))
+                        }
+                        parsed
+                }
+
                 data_inizio <- NA
                 if ("ingresso_data" %in% names(df)) {
-                        date_vals <- df$ingresso_data
-                        date_vals <- suppressWarnings(as.Date(date_vals))
-                        if (all(is.na(date_vals)) && is.numeric(df$ingresso_data)) {
-                                date_vals <- suppressWarnings(as.Date(df$ingresso_data, origin = "1899-12-30"))
-                        }
+                        date_vals <- parse_ingresso_date(df$ingresso_data)
                         if (!all(is.na(date_vals))) {
                                 data_inizio <- format(min(date_vals, na.rm = TRUE), "%d/%m/%Y")
                         }
