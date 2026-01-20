@@ -73,6 +73,7 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
 
                 dati <- reactiveVal(NULL)                                 # variabile reattiva per i dati caricati
                 gruppo_colonne <- reactiveVal(NULL)                       # variabile reattiva per il gruppo determinato
+                nome_file <- reactiveVal(NULL)                            # nome file caricato
                 upload_status <- reactiveVal(list(type = "idle", message = NULL)) # stato dell'upload per messaggi persistenti
 
                 notify_upload_issue <- function(msg, type = "error", duration = 8, status_type = "error") {
@@ -203,6 +204,7 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         if (is.null(input$file)) {                        # nessun file selezionato
                                 dati(NULL)
                                 gruppo_colonne(NULL)
+                                nome_file(NULL)
                                 upload_status(list(type = "idle", message = NULL))
                                 return()
                         }
@@ -220,6 +222,7 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                                 if (is.null(df)) {                        # se la lettura è fallita
                                         dati(NULL)
                                         gruppo_colonne(NULL)
+                                        nome_file(NULL)
                                         return()
                                 }
                                 
@@ -228,11 +231,13 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                                 if (is.null(standardizzato)) {
                                         dati(NULL)
                                         gruppo_colonne(NULL)
+                                        nome_file(NULL)
                                         return()
                                 }
 
                                 dati(standardizzato$animali)              # salva i dati standardizzati
                                 gruppo_colonne(standardizzato$gruppo)     # salva il gruppo determinato
+                                nome_file(input$file$name)                # salva il nome file originale
                         })
                 }, ignoreInit = TRUE)                                     # esegue solo dopo il primo caricamento
 
@@ -251,7 +256,8 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         animali = reactive(dati()),                      # espone i dati standardizzati
                         gruppo = reactive(gruppo_colonne()),              # espone il gruppo determinato
                         status = reactive(upload_status()),               # espone lo stato dell'upload per messaggi
-                        file_check = file_check                          # espone la verifica validità file
+                        file_check = file_check,                         # espone la verifica validità file
+                        file_name = reactive(nome_file())                # espone il nome file caricato
                 )
         })
 }
