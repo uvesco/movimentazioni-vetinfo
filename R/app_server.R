@@ -56,17 +56,30 @@ app_server <- function(input, output, session) {
                 if (is.null(df) || nrow(df) == 0) {
                         return(character(0))
                 }
-                valori <- list(
-                        dest_stabilimento_cod = df$dest_stabilimento_cod,
-                        orig_stabilimento_cod = df$orig_stabilimento_cod,
-                        ingresso_data = df$ingresso_data,
-                        ingresso_motivo = df$ingresso_motivo
-                )
-                valori <- lapply(valori, function(x) {
-                        x <- as.character(x)
+                n_righe <- nrow(df)
+                normalizza_valore <- function(x) {
+                        if (is.list(x)) {
+                                x <- vapply(x, function(item) {
+                                        if (length(item) == 0 || all(is.na(item))) {
+                                                return("")
+                                        }
+                                        as.character(item[1])
+                                }, character(1))
+                        } else {
+                                x <- as.character(x)
+                        }
                         x[is.na(x)] <- ""
-                        x
-                })
+                        rep_len(x, n_righe)
+                }
+                valori <- lapply(
+                        list(
+                                dest_stabilimento_cod = df$dest_stabilimento_cod,
+                                orig_stabilimento_cod = df$orig_stabilimento_cod,
+                                ingresso_data = df$ingresso_data,
+                                ingresso_motivo = df$ingresso_motivo
+                        ),
+                        normalizza_valore
+                )
                 do.call(paste, c(valori, sep = "|"))
         }
         
