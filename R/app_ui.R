@@ -122,34 +122,34 @@ app_ui <- function() {
 							
 							   
 							h3(id = "help-caricamento", "3. Caricamento File"),
-							h4("2.1 Formati supportati"),
+							h4("3.1 Formati supportati"),
 							tags$ul(
 								tags$li("File Excel .xls (formato originale BDN)"),
 								tags$li("File compressi .gz (file .xls compressi come da BDN)")
 							),
 							
-							h4("2.2 Gruppi specie supportati"),
+							h4("3.2 Gruppi specie supportati"),
 							tags$ul(
 								tags$li("Bovini e bufalini"),
 								tags$li("Ovicaprini")
 							),
 							
 							h3(id = "help-elaborazione", "4. Elaborazione Dati"),
-							h4("3.1 Classificazione origine"),
+							h4("4.1 Classificazione origine"),
 							p("Gli animali vengono classificati come 'Italia' o 'Estero' basandosi su:"),
 							tags$ul(
 								tags$li("Prefisso 'IT' nel marchio auricolare"),
 								tags$li("Motivo di ingresso nella tabella decodifiche")
 							),
 							
-							h4("3.2 Estrazione dati geografici"),
+							h4("4.2 Estrazione dati geografici"),
 							p("Per ogni animale vengono estratti:"),
 							tags$ul(
 								tags$li("Provincia di nascita: dalle prime 3 cifre del marchio auricolare"),
 								tags$li("Comune di provenienza: dal codice stabilimento di origine")
 							),
 							
-							h4("3.3 Incrocio con dati malattie"),
+							h4("4.3 Incrocio con dati malattie"),
 							p("I dati geografici vengono incrociati con le tabelle delle malattie per verificare:"),
 							tags$ul(
 								tags$li("Stato sanitario del comune di provenienza (prefisso prov_)"),
@@ -157,20 +157,20 @@ app_ui <- function() {
 							),
 							
 							h3(id = "help-risultati", "5. Tab Risultati"),
-							h4("4.1 Controllo Manuale"),
+							h4("5.1 Controllo Manuale"),
 							p("Mostra gli animali italiani per cui non è stato possibile identificare:"),
 							tags$ul(
 								tags$li("Il comune di provenienza (codice stabilimento non valido)"),
 								tags$li("La provincia di nascita (marchio auricolare non mappabile)")
 							),
 							
-							h4("4.2 Provenienze"),
+							h4("5.2 Provenienze"),
 							p("Mostra gli animali provenienti da comuni/zone non indenni per le malattie considerate."),
 							
-							h4("4.3 Nascite"),
+							h4("5.3 Nascite"),
 							p("Mostra gli animali nati in province non indenni per le malattie considerate."),
 							
-							h4("4.4 Dataset"),
+							h4("5.4 Dataset"),
 							p("Contiene il dataset completo con tutti i dati animali e lo stato sanitario delle malattie, scaricabile in Excel."),
 							
 							h3(id = "help-download", "6. Download"),
