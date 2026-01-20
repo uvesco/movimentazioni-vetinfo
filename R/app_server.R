@@ -395,14 +395,14 @@ app_server <- function(input, output, session) {
                         div(style = paste0("color: ", colore, ";"), paste(testo, valore))
                 }
                 
-                div(
-                        h4("Riepilogo controlli"),
-                        riga_colore("Numero di animali da controllare manualmente per nascita:", manuale_nascita),
-                        riga_colore("Numero di animali da controllare manualmente per provenienza:", manuale_provenienza),
-                        riga_colore("Numero di animali nati in province non indenni (per qualsiasi malattia):", nati_non_indenni),
-                        riga_colore("Numero di animali provenienti da province non indenni (per qualsiasi malattia):", provenienti_non_indenni)
-                )
-        })
+			div(
+				h4("Riepilogo controlli"),
+				riga_colore("Animali da controllare manualmente per nascita:", manuale_nascita),
+				riga_colore("Animali da controllare manualmente per provenienza:", manuale_provenienza),
+				riga_colore("Animali nati in province non indenni (per qualsiasi malattia):", nati_non_indenni),
+				riga_colore("Animali provenienti da province non indenni (per qualsiasi malattia):", provenienti_non_indenni)
+			)
+		})
         
         # =====================================================================
         # SEZIONE 7: OUTPUT CONTROLLO MANUALE
