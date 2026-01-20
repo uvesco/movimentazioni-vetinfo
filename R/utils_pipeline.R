@@ -63,8 +63,8 @@ parse_ingresso_date <- function(values) {
 		return(as.Date(values))
 	}
 	normalizza_anno_corto <- function(valori) {
-		anno_soglia <- 30
-		pattern <- "^\\s*(\\d{1,2})[/-](\\d{1,2})[/-](\\d{1,2})\\s*$"
+		anno_soglia <- 30  # Anni 00-30 -> 2000, 31-99 -> 1900
+		pattern <- "^\\s*(\\d{1,2})[/-\\.](\\d{1,2})[/-\\.](\\d{1,2})\\s*$"
 		catture <- regexec(pattern, valori)
 		parts <- regmatches(valori, catture)
 		vapply(seq_along(valori), function(i) {
@@ -77,7 +77,6 @@ parse_ingresso_date <- function(values) {
 			if (is.na(giorno) || is.na(mese) || is.na(anno) || giorno < 1 || giorno > 31 || mese < 1 || mese > 12) {
 				return(valori[i])
 			}
-			# Anni 00-30 -> 2000, 31-99 -> 1900
 			anno_esteso <- if (anno <= anno_soglia) 2000 + anno else 1900 + anno
 			sprintf("%02d/%02d/%04d", giorno, mese, anno_esteso)
 		}, character(1))
@@ -89,13 +88,18 @@ parse_ingresso_date <- function(values) {
 	formati <- c(
 		"%d/%m/%Y",
 		"%d-%m-%Y",
+		"%d.%m.%Y",
 		"%d/%m/%Y %H:%M:%S",
 		"%d/%m/%Y %H:%M",
 		"%d-%m-%Y %H:%M:%S",
 		"%d-%m-%Y %H:%M",
+		"%d.%m.%Y %H:%M:%S",
+		"%d.%m.%Y %H:%M",
 		"%Y/%m/%d",
 		"%Y-%m-%d %H:%M:%S",
 		"%Y-%m-%d %H:%M",
+		"%Y-%m-%dT%H:%M:%S",
+		"%Y-%m-%dT%H:%M",
 		"%Y-%m-%d"
 	)
 	for (formato in formati) {
