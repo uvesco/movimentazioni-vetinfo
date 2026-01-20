@@ -59,8 +59,25 @@ parse_ingresso_date <- function(values) {
 	if (inherits(values, "Date")) {
 		return(values)
 	}
-	parsed <- suppressWarnings(as.Date(values))
-	numeric_values <- suppressWarnings(as.numeric(values))
+	if (inherits(values, "POSIXt")) {
+		return(as.Date(values))
+	}
+	valori <- as.character(values)
+	valori[valori == ""] <- NA_character_
+	parsed <- suppressWarnings(as.Date(valori))
+	if (any(is.na(parsed))) {
+		parsed_alt <- suppressWarnings(as.Date(valori, format = "%d/%m/%Y"))
+		parsed[is.na(parsed) & !is.na(parsed_alt)] <- parsed_alt[is.na(parsed) & !is.na(parsed_alt)]
+	}
+	if (any(is.na(parsed))) {
+		parsed_alt <- suppressWarnings(as.Date(valori, format = "%d-%m-%Y"))
+		parsed[is.na(parsed) & !is.na(parsed_alt)] <- parsed_alt[is.na(parsed) & !is.na(parsed_alt)]
+	}
+	if (any(is.na(parsed))) {
+		parsed_alt <- suppressWarnings(as.Date(valori, format = "%Y/%m/%d"))
+		parsed[is.na(parsed) & !is.na(parsed_alt)] <- parsed_alt[is.na(parsed) & !is.na(parsed_alt)]
+	}
+	numeric_values <- suppressWarnings(as.numeric(valori))
 	numeric_idx <- is.na(parsed) & !is.na(numeric_values)
 	if (any(numeric_idx)) {
 		range_idx <- numeric_values[numeric_idx] >= 1 & numeric_values[numeric_idx] <= 50000
