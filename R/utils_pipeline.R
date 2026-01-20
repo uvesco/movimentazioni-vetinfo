@@ -78,7 +78,11 @@ parse_ingresso_date <- function(values) {
 				return(valori[i])
 			}
 			anno_esteso <- if (anno <= anno_soglia) 2000 + anno else 1900 + anno
-			sprintf("%02d/%02d/%04d", giorno, mese, anno_esteso)
+			data_candidata <- sprintf("%02d/%02d/%04d", giorno, mese, anno_esteso)
+			if (is.na(suppressWarnings(as.Date(data_candidata, format = "%d/%m/%Y")))) {
+				return(valori[i])
+			}
+			data_candidata
 		}, character(1))
 	}
 	valori <- trimws(as.character(values))
@@ -110,7 +114,7 @@ parse_ingresso_date <- function(values) {
 		aggiorna_idx <- is.na(parsed) & !is.na(parsed_alt)
 		parsed[aggiorna_idx] <- parsed_alt[aggiorna_idx]
 	}
-	numeric_values <- suppressWarnings(as.numeric(valori))
+	numeric_values <- suppressWarnings(as.numeric(values))
 	numeric_idx <- is.na(parsed) & !is.na(numeric_values)
 	if (any(numeric_idx)) {
 		range_idx <- numeric_values[numeric_idx] >= 1 & numeric_values[numeric_idx] <= 50000
