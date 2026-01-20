@@ -31,11 +31,11 @@ app_ui <- function() {
 				sidebarLayout(
 					# Pannello laterale con widget di upload
 					sidebarPanel(
-						mod_upload_movimentazioni_ui("upload_mov")
+						mod_upload_movimentazioni_ui("upload_mov"),
+						verbatimTextOutput("tipo_file")
 					),
 					# Pannello principale con informazioni sul file caricato
 					mainPanel(
-						verbatimTextOutput("tipo_file"),      # Messaggio stato caricamento
 						uiOutput("n_animali"),                 # Conteggio animali
 						uiOutput("titolo_malattie"),           # Titolo sezione malattie
 						tableOutput("malattie_importate"),     # Tabella malattie rilevanti
