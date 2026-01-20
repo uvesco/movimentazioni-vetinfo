@@ -112,7 +112,7 @@ app_server <- function(input, output, session) {
                         tab = tabPanel(
                                         title = "Sommario", 
                                         value = "sommario",
-                                        h3("Provenienze"),
+                                        h3("Provenienza"),
                                         h4("Internazionali"),
                                         tableOutput("sommario_internazionali"),
                                         h4("Regioni"),
@@ -126,7 +126,7 @@ app_server <- function(input, output, session) {
                                         h4("Province"),
                                         tableOutput("sommario_nascita_province"),
                                         hr(),
-                                        h3("Importatori"),
+                                        h3("Destinazioni"),
                                         tableOutput("sommario_importatori")
                                 )
                         )
@@ -266,7 +266,7 @@ app_server <- function(input, output, session) {
                 lotti_tot <- length(unique(lot_id))
                 
                 data.frame(
-                        Voce = c("Numero di animali", "Numero di lotti"),
+                        Voce = c("Animali", "Lotti"),
                         `Provenienza Italia` = c(animali_italia, lotti_italia),
                         `Provenienza estero` = c(animali_estero, lotti_estero),
                         Totale = c(animali_tot, lotti_tot),

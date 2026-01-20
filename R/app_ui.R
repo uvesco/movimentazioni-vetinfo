@@ -115,7 +115,7 @@ app_ui <- function() {
 								tags$li(
 									"Selezionare Stampa EXCEL e premere il pulsante ",
 									tags$strong("Invio"),
-									" per scaricare il file, che potrà essere caricato nell'applicazione indifferentemente in formato compresso .gz o .xls"
+									" per scaricare il file"
 								)
 							),
 							
@@ -124,12 +124,12 @@ app_ui <- function() {
 							h4("2.1 Formati supportati"),
 							tags$ul(
 								tags$li("File Excel .xls (formato originale BDN)"),
-								tags$li("File compressi .gz (file .xls compressi)")
+								tags$li("File compressi .gz (file .xls compressi come da BDN)")
 							),
 							
 							h4("2.2 Gruppi specie supportati"),
 							tags$ul(
-								tags$li("Bovini"),
+								tags$li("Bovini e bufalini"),
 								tags$li("Ovicaprini")
 							),
 							
