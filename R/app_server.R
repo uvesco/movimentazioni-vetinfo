@@ -316,6 +316,8 @@ app_server <- function(input, output, session) {
                 grp <- gruppo()
                 req(df, grp)
                 
+                # Excel stores dates as number of days since 1899-12-30 (Windows epoch).
+                # This helper handles both Date values and numeric Excel dates.
                 excel_epoch <- as.Date("1899-12-30")
                 parse_ingresso_date <- function(values) {
                         if (inherits(values, "Date")) {
