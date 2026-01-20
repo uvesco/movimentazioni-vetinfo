@@ -42,6 +42,24 @@ normalize_stab_code <- function(x) {
 }
 
 # =============================================================================
+# FUNZIONE 0B: PARSE DATA INGRESSO
+# =============================================================================
+# Converte valori data (Date o numerici Excel) in Date.
+# Excel memorizza le date come giorni trascorsi dal 1899-12-30 (epoca Windows).
+parse_ingresso_date <- function(values) {
+	excel_epoch <- as.Date("1899-12-30")
+	if (inherits(values, "Date")) {
+		return(values)
+	}
+	parsed <- suppressWarnings(as.Date(values))
+	numeric_idx <- is.na(parsed) & is.numeric(values)
+	if (any(numeric_idx)) {
+		parsed[numeric_idx] <- suppressWarnings(as.Date(values[numeric_idx], origin = excel_epoch))
+	}
+	parsed
+}
+
+# =============================================================================
 # FUNZIONE 1 [DEPRECATA]: CLASSIFICA ORIGINE
 # =============================================================================
 # NOTA: Questa funzione non è più utilizzata nella pipeline principale.
