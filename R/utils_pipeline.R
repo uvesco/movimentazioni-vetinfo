@@ -62,21 +62,34 @@ parse_ingresso_date <- function(values) {
 	if (inherits(values, "POSIXt")) {
 		return(as.Date(values))
 	}
-	valori <- as.character(values)
+	normalizza_anno_corto <- function(valori) {
+		pattern <- "^\\s*(\\d{1,2})[/-](\\d{1,2})[/-](\\d{1,2})\\s*$"
+		catture <- regexec(pattern, valori)
+		parts <- regmatches(valori, catture)
+		vapply(seq_along(valori), function(i) {
+			if (length(parts[[i]]) != 4) {
+				return(valori[i])
+			}
+			giorno <- as.integer(parts[[i]][2])
+			mese <- as.integer(parts[[i]][3])
+			anno <- as.integer(parts[[i]][4])
+			if (is.na(giorno) || is.na(mese) || is.na(anno)) {
+				return(valori[i])
+			}
+			anno_esteso <- if (anno <= 30) 2000 + anno else 1900 + anno
+			sprintf("%02d/%02d/%04d", giorno, mese, anno_esteso)
+		}, character(1))
+	}
+	valori <- trimws(as.character(values))
 	valori[valori == ""] <- NA_character_
+	valori <- normalizza_anno_corto(valori)
 	parsed <- suppressWarnings(as.Date(valori))
-	if (any(is.na(parsed))) {
-		parsed_alt <- suppressWarnings(as.Date(valori, format = "%d/%m/%Y"))
-		aggiorna_idx <- is.na(parsed) & !is.na(parsed_alt)
-		parsed[aggiorna_idx] <- parsed_alt[aggiorna_idx]
-	}
-	if (any(is.na(parsed))) {
-		parsed_alt <- suppressWarnings(as.Date(valori, format = "%d-%m-%Y"))
-		aggiorna_idx <- is.na(parsed) & !is.na(parsed_alt)
-		parsed[aggiorna_idx] <- parsed_alt[aggiorna_idx]
-	}
-	if (any(is.na(parsed))) {
-		parsed_alt <- suppressWarnings(as.Date(valori, format = "%Y/%m/%d"))
+	formati <- c("%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d")
+	for (formato in formati) {
+		if (!any(is.na(parsed))) {
+			break
+		}
+		parsed_alt <- suppressWarnings(as.Date(valori, format = formato))
 		aggiorna_idx <- is.na(parsed) & !is.na(parsed_alt)
 		parsed[aggiorna_idx] <- parsed_alt[aggiorna_idx]
 	}
