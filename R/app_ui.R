@@ -13,7 +13,7 @@ app_ui <- function() {
 	
 	fluidPage(
 		# Titolo principale dell'applicazione
-		titlePanel("Elaborazione movimentazioni da BDN (IN SVILUPPO)"),
+		titlePanel("Elaborazione movimentazioni da BDN"),
 		
 		# Container principale con tab
 		tabsetPanel(
@@ -83,9 +83,43 @@ app_ui <- function() {
 							hr(),
 							
 							h3(id = "help-introduzione", "1. Introduzione"),
-							p("Questa applicazione permette di elaborare le movimentazioni animali esportate dalla BDN 
+							p("L'applicazione permette di elaborare le movimentazioni di animali direttamente dai files esportati dalla BDN (Banca Dati Nazionale) al fine di identificare animali provenienti o nati in zone non indenni per determinate malattie.",
+							  "L'obiettivo è facilitare il controllo sanitario degli animali movimentati, consentendo di individuare rapidamente eventuali rischi associati alla loro origine geografica.",
+							  "L'applicazione consente di caricare file Excel contenenti le movimentazioni, elaborare i dati per classificare gli animali in base alla loro origine (Italia o Estero),",
+							  "estrarre informazioni geografiche rilevanti (comune di provenienza e provincia di nascita) 
 							   e verificare lo stato sanitario delle zone di provenienza e nascita degli animali."),
+							h3(id = "download", "2. Download da BDN"),
 							
+							p(
+								"I dati possono essere scaricati indifferentemente dagli applicativi BDN di specie o dall'applicativo Interrogazione BDN, ",
+								"seguono i passaggi per l'interrogazione dell'applicativo Interrogazione BDN:"
+							),
+							
+							tags$ul(
+								tags$li("Accedere all'applicativo Interrogazione BDN"),
+								tags$li("Scegliere ", tags$strong("Dati")),
+								tags$li("Scegliere ", tags$strong("Estrazione Dati")),
+								tags$li(
+									"Scegliere tra ",
+									tags$strong("Bovini"),
+									" e ",
+									tags$strong("Ovini e Caprini")
+								),
+								tags$li("Scegliere ", tags$strong("Dati sugli animali")),
+								tags$li(
+									"Scegliere ",
+									tags$strong("Movimentazioni di capi bovini e bufalini"),
+									" (a oggi c'è un errore e la dicitura è la stessa anche per ovini e caprini)"
+								),
+								tags$li("Impostare i filtri desiderati per le movimentazioni"),
+								tags$li(
+									"Selezionare Stampa EXCEL e premere il pulsante ",
+									tags$strong("Invio"),
+									" per scaricare il file, che potrà essere caricato nell'applicazione indifferentemente in formato compresso .gz o .xls"
+								)
+							),
+							
+							   
 							h3(id = "help-caricamento", "2. Caricamento File"),
 							h4("2.1 Formati supportati"),
 							tags$ul(
