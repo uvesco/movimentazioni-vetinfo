@@ -45,8 +45,8 @@ normalize_stab_code <- function(x) {
 # FUNZIONE 0B: PARSE DATA INGRESSO
 # =============================================================================
 # Converte valori data (Date, stringhe data o numerici Excel) in Date.
-# Excel memorizza le date come giorni trascorsi dal 1899-12-31 (epoca Windows,
-# con l'anomalia del 1900 bisestile).
+# Excel memorizza le date come giorni trascorsi dal 1899-12-30 (epoca Windows).
+# Nota: la conversione non corregge l'anomalia del 1900 bisestile (Excel).
 #
 # PARAMETRI:
 # - values: vettore di date (Date), stringhe o numerici Excel
@@ -55,7 +55,7 @@ normalize_stab_code <- function(x) {
 # - vettore Date con valori convertiti o NA se non convertibile
 # =============================================================================
 parse_ingresso_date <- function(values) {
-	excel_epoch <- as.Date("1899-12-31")
+	excel_epoch <- as.Date("1899-12-30")
 	if (inherits(values, "Date")) {
 		return(values)
 	}
@@ -63,7 +63,12 @@ parse_ingresso_date <- function(values) {
 	numeric_values <- suppressWarnings(as.numeric(values))
 	numeric_idx <- is.na(parsed) & !is.na(numeric_values)
 	if (any(numeric_idx)) {
-		parsed[numeric_idx] <- suppressWarnings(as.Date(numeric_values[numeric_idx], origin = excel_epoch))
+		range_idx <- numeric_values[numeric_idx] >= 1 & numeric_values[numeric_idx] <= 50000
+		if (any(range_idx)) {
+			parsed[numeric_idx][range_idx] <- suppressWarnings(
+				as.Date(numeric_values[numeric_idx][range_idx], origin = excel_epoch)
+			)
+		}
 	}
 	parsed
 }
