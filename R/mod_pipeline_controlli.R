@@ -240,8 +240,11 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 				c("nascita_italia", "nascita_reg_cod", "nascita_reg_nome", "nascita_uts_cod", "nascita_uts_nome")
 			)
 			other_cols <- current_cols[!current_cols %in% c(orig_cols, prov_cols, nascita_cols)]
+			priority_cols <- c("capo_identificativo", "capo_identificativo_elettronico", "ingresso_data", "ingresso_motivo")
+			other_cols <- other_cols[!other_cols %in% priority_cols]
 			
 			new_order <- c(
+				intersect(priority_cols, current_cols),
 				other_cols,
 				orig_cols_ordered,
 				prov_cols,
