@@ -282,7 +282,7 @@ app_server <- function(input, output, session) {
                 regioni <- sort(unique(df_regioni$DEN_REG))
                 animali <- vapply(regioni, function(reg) {
                         idx <- !is.na(df$orig_reg_nome) & df$orig_reg_nome == reg
-                        sum(idx, na.rm = TRUE)
+                        sum(idx)
                 }, integer(1))
                 lotti <- vapply(regioni, function(reg) {
                         idx <- !is.na(df$orig_reg_nome) & df$orig_reg_nome == reg
@@ -314,7 +314,7 @@ app_server <- function(input, output, session) {
                 
                 animali <- vapply(province, function(prov) {
                         idx <- !is.na(df$orig_uts_nome) & df$orig_uts_nome == prov
-                        sum(idx, na.rm = TRUE)
+                        sum(idx)
                 }, integer(1))
                 lotti <- vapply(province, function(prov) {
                         idx <- !is.na(df$orig_uts_nome) & df$orig_uts_nome == prov
