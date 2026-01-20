@@ -69,7 +69,8 @@ app_ui <- function() {
 								tags$li(tags$a(href = "#help-risultati", "Tab risultati")),
 								tags$li(tags$a(href = "#help-download", "Download")),
 								tags$li(tags$a(href = "#help-note", "Note tecniche")),
-								tags$li(tags$a(href = "#help-debug", "Debug"))
+								tags$li(tags$a(href = "#help-disclaimer", "Disclaimer")),
+								tags$li(tags$a(href = "#help-crediti", "Crediti"))
 							)
 						)
 					),
@@ -88,7 +89,7 @@ app_ui <- function() {
 							  "L'applicazione consente di caricare file Excel contenenti le movimentazioni, elaborare i dati per classificare gli animali in base alla loro origine (Italia o Estero),",
 							  "estrarre informazioni geografiche rilevanti (comune di provenienza e provincia di nascita) 
 							   e verificare lo stato sanitario delle zone di provenienza e nascita degli animali."),
-							h3(id = "download", "2. Download da BDN"),
+							h3(id = "help-download-bdn", "2. Download da BDN"),
 							
 							p(
 								"I dati possono essere scaricati indifferentemente dagli applicativi BDN di specie o dall'applicativo Interrogazione BDN, ",
@@ -120,7 +121,7 @@ app_ui <- function() {
 							),
 							
 							   
-							h3(id = "help-caricamento", "2. Caricamento File"),
+							h3(id = "help-caricamento", "3. Caricamento File"),
 							h4("2.1 Formati supportati"),
 							tags$ul(
 								tags$li("File Excel .xls (formato originale BDN)"),
@@ -133,7 +134,7 @@ app_ui <- function() {
 								tags$li("Ovicaprini")
 							),
 							
-							h3(id = "help-elaborazione", "3. Elaborazione Dati"),
+							h3(id = "help-elaborazione", "4. Elaborazione Dati"),
 							h4("3.1 Classificazione origine"),
 							p("Gli animali vengono classificati come 'Italia' o 'Estero' basandosi su:"),
 							tags$ul(
@@ -155,7 +156,7 @@ app_ui <- function() {
 								tags$li("Stato sanitario della provincia di nascita (prefisso nascita_)")
 							),
 							
-							h3(id = "help-risultati", "4. Tab Risultati"),
+							h3(id = "help-risultati", "5. Tab Risultati"),
 							h4("4.1 Controllo Manuale"),
 							p("Mostra gli animali italiani per cui non è stato possibile identificare:"),
 							tags$ul(
@@ -172,11 +173,11 @@ app_ui <- function() {
 							h4("4.4 Dataset"),
 							p("Contiene il dataset completo con tutti i dati animali e lo stato sanitario delle malattie, scaricabile in Excel."),
 							
-							h3(id = "help-download", "5. Download"),
+							h3(id = "help-download", "6. Download"),
 							p("Ogni tab con tabelle permette il download dei dati in formato Excel."),
 							
 							hr(),
-							h3(id = "help-note", "6. Note tecniche"),
+							h3(id = "help-note", "7. Note tecniche"),
 							tags$ul(
 								tags$li("TRUE = zona indenne (disease-free)"),
 								tags$li("FALSE = zona non indenne"),
@@ -184,9 +185,12 @@ app_ui <- function() {
 							),
 							
 							hr(),
-							h2(id = "help-debug", "Debug"),
-							p("Download del file importato con tutti i merge effettuati (incluse le malattie) e con animali esteri, in formato .xlsx, utile per la verifica manuale."),
-							downloadButton("download_debug_dataset", "Scarica dataset completo (.xlsx)")
+							h3(id = "help-disclaimer", "8. Disclaimer"),
+							p("L'uso dell'applicazione è a rischio e pericolo dell'utente e non si forniscono garanzie. Si invita a verificare il dataset collegato e l'aggiornamento dei files di indennità delle province."),
+							hr(),
+							h3(id = "help-crediti", "9. Crediti"),
+							p("Umberto Vesco (ASLTO3). Codice disponibile con licenza GNU GPL 3.0."),
+							tags$a(href = "https://github.com/uvesco/movimentazioni-vetinfo", target = "_blank", "Repository GitHub")
 						)
 					)
 				)

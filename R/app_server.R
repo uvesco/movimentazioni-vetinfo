@@ -29,6 +29,7 @@ app_server <- function(input, output, session) {
         gruppo <- upload$gruppo                      # Gruppo specie (bovini/ovicaprini)
         stato_upload <- upload$status                # Stato caricamento per messaggi
         file_check <- upload$file_check              # Verifica validità file (colonne)
+        file_name <- upload$file_name                # Nome file caricato
 
         # Modulo malattie: genera i dataframe con status sanitario per provincia/comune
         # Importa tutti i file .xlsx dalla cartella data_static/malattie
@@ -141,8 +142,8 @@ app_server <- function(input, output, session) {
                                         title = "Dataset", 
                                         value = "dataset",
                                         h3("Dataset completo movimentazioni"),
-                                        p("Tabella con tutti i dati animali e lo stato sanitario delle zone di provenienza e nascita."),
-                                        DT::DTOutput("tabella_output")
+                                        p("Download del dataset elaborato in formato Excel."),
+                                        downloadButton("download_dataset", "Scarica dataset elaborato (.xlsx)")
                                 )
                         )
 
@@ -266,10 +267,9 @@ app_server <- function(input, output, session) {
                 lotti_tot <- length(unique(lot_id))
                 
                 data.frame(
-                        Voce = c("Animali", "Lotti"),
-                        `Provenienza Italia` = c(animali_italia, lotti_italia),
-                        `Provenienza estero` = c(animali_estero, lotti_estero),
-                        Totale = c(animali_tot, lotti_tot),
+                        Categoria = c("Italia", "Estero", "Totale"),
+                        Lotti = c(lotti_italia, lotti_estero, lotti_tot),
+                        Animali = c(animali_italia, animali_estero, animali_tot),
                         check.names = FALSE
                 )
         }, rownames = FALSE)
@@ -291,8 +291,8 @@ app_server <- function(input, output, session) {
                 
                 data.frame(
                         Regione = regioni,
-                        `Numero lotti` = lotti,
-                        `Numero animali` = animali,
+                        Lotti = lotti,
+                        Animali = animali,
                         check.names = FALSE
                 )
         }, rownames = FALSE)
@@ -324,12 +324,12 @@ app_server <- function(input, output, session) {
                 risultato <- data.frame(
                         Regione = unname(regioni[province]),
                         Provincia = province,
-                        `Numero lotti` = lotti,
-                        `Numero animali` = animali,
+                        Lotti = lotti,
+                        Animali = animali,
                         check.names = FALSE
                 )
                 
-                risultato[order(-risultato$`Numero animali`), , drop = FALSE]
+                risultato[order(-risultato$Animali), , drop = FALSE]
         }, rownames = FALSE)
         
         output$sommario_nascita_paesi <- renderTable({
@@ -350,7 +350,7 @@ app_server <- function(input, output, session) {
                 
                 data.frame(
                         Paese = names(conteggi),
-                        `Numero animali` = as.integer(conteggi),
+                        Animali = as.integer(conteggi),
                         Percentuale = paste0(percentuali, "%"),
                         check.names = FALSE
                 )
@@ -371,7 +371,7 @@ app_server <- function(input, output, session) {
                 
                 data.frame(
                         Provincia = names(conteggi),
-                        `Numero animali` = as.integer(conteggi),
+                        Animali = as.integer(conteggi),
                         Percentuale = paste0(percentuali, "%"),
                         check.names = FALSE
                 )
@@ -397,15 +397,15 @@ app_server <- function(input, output, session) {
                         data.frame(
                                 `Codice destinazione` = dest_cod[idx][1],
                                 `Comune destinazione` = dest_com[idx][1],
-                                `Numero lotti` = lotti,
-                                `Numero animali` = totale,
+                                Lotti = lotti,
+                                Animali = totale,
                                 `Percentuale da estero` = paste0(percentuale, "%"),
                                 check.names = FALSE
                         )
                 })
                 
                 risultato <- do.call(rbind, righe)
-                risultato[order(-risultato$`Numero animali`), , drop = FALSE]
+                risultato[order(-risultato$Animali), , drop = FALSE]
         }, rownames = FALSE)
         
         # =====================================================================
@@ -414,28 +414,29 @@ app_server <- function(input, output, session) {
         # Mostra il dataset completo con tutti i dati animali e malattie
         # Questo è il merge finale: animali + status sanitario provenienza + nascita
         
-        output$tabella_output <- DT::renderDT({
-                # Ottiene i dati processati dalla pipeline (merge completo)
-                df <- pipeline$dati_processati()
-                req(df)
-                
-                DT::datatable(
-                        df,
-                        extensions = "Buttons",
-                        options = list(
-                                dom = "Bfrtip",
-                                buttons = list(list(
-                                        extend = "excel",
-                                        filename = paste0("movimentazioni_complete_", format(Sys.Date(), "%Y%m%d"))
-                                )),
-                                pageLength = 10,
-                                lengthMenu = c(10, 25, 50, 100),
-                                scrollX = TRUE
-                        ),
-                        filter = "top",
-                        rownames = FALSE
-                )
-        }, server = FALSE)
+        output$download_dataset <- downloadHandler(
+                filename = function() {
+                        nome <- file_name()
+                        if (is.null(nome) || is.na(nome) || nome == "") {
+                                return(paste0("movimentazioni_elab_", format(Sys.Date(), "%Y%m%d"), ".xlsx"))
+                        }
+                        nome <- sub("\\.[^.]+$", "", nome)
+                        paste0(nome, "_elab.xlsx")
+                },
+                content = function(file) {
+                        df <- pipeline$dati_processati()
+                        if (is.null(df) || nrow(df) == 0) {
+                                shiny::showNotification(
+                                        "Nessun dato disponibile per il download.",
+                                        type = "warning",
+                                        duration = 6,
+                                        session = session
+                                )
+                                stop("Nessun dato disponibile per il download.")
+                        }
+                        openxlsx::write.xlsx(df, file)
+                }
+        )
 
         # Download debug: dataset completo con tutti i merge (include animali esteri)
         output$download_debug_dataset <- downloadHandler(
