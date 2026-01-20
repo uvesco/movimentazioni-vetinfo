@@ -51,6 +51,24 @@ app_server <- function(input, output, session) {
                 gruppo = gruppo,                     # Gruppo specie corrente
                 malattie_data = malattie             # Dati malattie per il merge
         )
+
+        crea_lotto_id <- function(df) {
+                if (is.null(df) || nrow(df) == 0) {
+                        return(character(0))
+                }
+                valori <- list(
+                        dest_stabilimento_cod = df$dest_stabilimento_cod,
+                        orig_stabilimento_cod = df$orig_stabilimento_cod,
+                        ingresso_data = df$ingresso_data,
+                        ingresso_motivo = df$ingresso_motivo
+                )
+                valori <- lapply(valori, function(x) {
+                        x <- as.character(x)
+                        x[is.na(x)] <- ""
+                        x
+                })
+                do.call(paste, c(valori, sep = "|"))
+        }
         
         # =====================================================================
         # SEZIONE 3: GESTIONE TAB DINAMICI
@@ -78,13 +96,25 @@ app_server <- function(input, output, session) {
                                 inputId = "tabs", 
                                 target = "input", 
                                 position = "after",
-                                tab = tabPanel(
+                        tab = tabPanel(
                                         title = "Sommario", 
                                         value = "sommario",
-                                        h3("Informazioni elaborazione"),
-                                        textOutput("gruppo_tab"),
+                                        h3("Provenienze"),
+                                        h4("Internazionali"),
+                                        tableOutput("sommario_internazionali"),
+                                        h4("Regioni"),
+                                        tableOutput("sommario_provenienze_regioni"),
+                                        h4("Province"),
+                                        tableOutput("sommario_provenienze_province"),
                                         hr(),
-                                        p("I dati sono stati elaborati correttamente.")
+                                        h3("Nascita"),
+                                        h4("Paesi"),
+                                        tableOutput("sommario_nascita_paesi"),
+                                        h4("Province"),
+                                        tableOutput("sommario_nascita_province"),
+                                        hr(),
+                                        h3("Importatori"),
+                                        tableOutput("sommario_importatori")
                                 )
                         )
 
@@ -203,14 +233,163 @@ app_server <- function(input, output, session) {
         })
 
         # =====================================================================
-        # SEZIONE 4: OUTPUT ELABORAZIONE
+        # SEZIONE 4: OUTPUT SOMMARIO
         # =====================================================================
         
-        # Mostra il gruppo specie nel tab Elaborazione
-        output$gruppo_tab <- renderText({
-                req(gruppo())
-                paste("Gruppo specie:", gruppo())
-        })
+        output$sommario_internazionali <- renderTable({
+                df <- pipeline$dati_processati()
+                req(df)
+                
+                lot_id <- crea_lotto_id(df)
+                is_italia <- df$orig_italia == TRUE
+                is_estero <- df$orig_italia == FALSE
+                
+                animali_italia <- sum(is_italia, na.rm = TRUE)
+                animali_estero <- sum(is_estero, na.rm = TRUE)
+                animali_tot <- nrow(df)
+                
+                lotti_italia <- length(unique(lot_id[is_italia & !is.na(is_italia)]))
+                lotti_estero <- length(unique(lot_id[is_estero & !is.na(is_estero)]))
+                lotti_tot <- length(unique(lot_id))
+                
+                data.frame(
+                        Voce = c("Numero di animali", "Numero di lotti"),
+                        `Provenienza Italia` = c(animali_italia, lotti_italia),
+                        `Provenienza estero` = c(animali_estero, lotti_estero),
+                        Totale = c(animali_tot, lotti_tot),
+                        check.names = FALSE
+                )
+        }, rownames = FALSE)
+        
+        output$sommario_provenienze_regioni <- renderTable({
+                df <- pipeline$dati_processati()
+                req(df)
+                
+                lot_id <- crea_lotto_id(df)
+                regioni <- sort(unique(df_regioni$DEN_REG))
+                animali <- vapply(regioni, function(reg) {
+                        sum(df$orig_reg_nome == reg, na.rm = TRUE)
+                }, integer(1))
+                lotti <- vapply(regioni, function(reg) {
+                        length(unique(lot_id[df$orig_reg_nome == reg]))
+                }, integer(1))
+                
+                data.frame(
+                        Regione = regioni,
+                        `Numero lotti` = lotti,
+                        `Numero animali` = animali,
+                        check.names = FALSE
+                )
+        }, rownames = FALSE)
+        
+        output$sommario_provenienze_province <- renderTable({
+                df <- pipeline$dati_processati()
+                req(df)
+                
+                lot_id <- crea_lotto_id(df)
+                province <- sort(unique(na.omit(df$orig_uts_nome)))
+                if (length(province) == 0) {
+                        return(data.frame())
+                }
+                
+                regioni <- tapply(df$orig_reg_nome, df$orig_uts_nome, function(x) {
+                        val <- unique(na.omit(x))
+                        if (length(val) == 0) NA else val[1]
+                })
+                
+                animali <- vapply(province, function(prov) {
+                        sum(df$orig_uts_nome == prov, na.rm = TRUE)
+                }, integer(1))
+                lotti <- vapply(province, function(prov) {
+                        length(unique(lot_id[df$orig_uts_nome == prov]))
+                }, integer(1))
+                
+                risultato <- data.frame(
+                        Regione = unname(regioni[province]),
+                        Provincia = province,
+                        `Numero lotti` = lotti,
+                        `Numero animali` = animali,
+                        check.names = FALSE
+                )
+                
+                risultato[order(-risultato$`Numero animali`), , drop = FALSE]
+        }, rownames = FALSE)
+        
+        output$sommario_nascita_paesi <- renderTable({
+                df <- pipeline$dati_processati()
+                req(df)
+                
+                totale_animali <- nrow(df)
+                codici <- toupper(substr(as.character(df$capo_identificativo), 1, 2))
+                codici[is.na(codici) | nchar(codici) < 2] <- "N/D"
+                nomi <- df_stati$Descrizione[match(codici, df_stati$Codice)]
+                paesi <- ifelse(!is.na(nomi), nomi, codici)
+                
+                conteggi <- sort(table(paesi), decreasing = TRUE)
+                if (length(conteggi) == 0) {
+                        return(data.frame())
+                }
+                percentuali <- if (totale_animali > 0) round(100 * conteggi / totale_animali, 1) else 0
+                
+                data.frame(
+                        Paese = names(conteggi),
+                        `Numero animali` = as.integer(conteggi),
+                        Percentuale = paste0(percentuali, "%"),
+                        check.names = FALSE
+                )
+        }, rownames = FALSE)
+        
+        output$sommario_nascita_province <- renderTable({
+                df <- pipeline$dati_processati()
+                req(df)
+                
+                totale_animali <- nrow(df)
+                province <- df$nascita_uts_nome
+                province <- province[!is.na(province)]
+                conteggi <- sort(table(province), decreasing = TRUE)
+                if (length(conteggi) == 0) {
+                        return(data.frame())
+                }
+                percentuali <- if (totale_animali > 0) round(100 * conteggi / totale_animali, 1) else 0
+                
+                data.frame(
+                        Provincia = names(conteggi),
+                        `Numero animali` = as.integer(conteggi),
+                        Percentuale = paste0(percentuali, "%"),
+                        check.names = FALSE
+                )
+        }, rownames = FALSE)
+        
+        output$sommario_importatori <- renderTable({
+                df <- pipeline$dati_processati()
+                req(df)
+                
+                lot_id <- crea_lotto_id(df)
+                dest_cod <- as.character(df$dest_stabilimento_cod)
+                dest_com <- as.character(df$dest_com)
+                dest_cod[is.na(dest_cod)] <- "N/D"
+                dest_com[is.na(dest_com)] <- "N/D"
+                dest_key <- paste(dest_cod, dest_com, sep = "|")
+                
+                gruppi <- split(seq_len(nrow(df)), dest_key)
+                righe <- lapply(gruppi, function(idx) {
+                        totale <- length(idx)
+                        estero <- sum(df$orig_italia[idx] == FALSE, na.rm = TRUE)
+                        lotti <- length(unique(lot_id[idx]))
+                        percentuale <- if (totale > 0) round(100 * estero / totale, 1) else 0
+                        data.frame(
+                                `Codice destinazione` = dest_cod[idx][1],
+                                `Comune destinazione` = dest_com[idx][1],
+                                `Numero lotti` = lotti,
+                                `Numero animali` = totale,
+                                `Percentuale da estero` = paste0(percentuale, "%"),
+                                check.names = FALSE
+                        )
+                })
+                
+                risultato <- do.call(rbind, righe)
+                risultato[order(-risultato$`Numero animali`), , drop = FALSE]
+        }, rownames = FALSE)
         
         # =====================================================================
         # SEZIONE 5: OUTPUT - DATASET COMPLETO
@@ -317,18 +496,27 @@ app_server <- function(input, output, session) {
                 req(df, grp)
                 
                 data_inizio <- NA
+                data_fine <- NA
                 if ("ingresso_data" %in% names(df)) {
                         date_vals <- parse_ingresso_date(df$ingresso_data)
-                        if (!all(is.na(date_vals))) {
-                                data_inizio <- format(min(date_vals, na.rm = TRUE), "%d/%m/%Y")
+                        valid_dates <- !is.na(date_vals)
+                        if (any(valid_dates)) {
+                                years <- suppressWarnings(as.integer(format(date_vals, "%Y")))
+                                valid_dates <- valid_dates & !is.na(years) & years >= 1900 & years <= 2100
+                        }
+                        if (any(valid_dates)) {
+                                data_inizio <- format(min(date_vals[valid_dates]), "%d/%m/%Y")
+                                data_fine <- format(max(date_vals[valid_dates]), "%d/%m/%Y")
                         }
                 }
                 data_inizio_label <- ifelse(is.na(data_inizio), "N/D", data_inizio)
+                data_fine_label <- ifelse(is.na(data_fine), "N/D", data_fine)
                 
                 div(
                         bs_icon("info-circle-fill"), em("Informazioni"), br(),
-                        h4("Date"),
+                        h4("Periodo"),
                         "Data inizio: ", data_inizio_label, br(),
+                        "Data fine: ", data_fine_label, br(),
                         h4("Animali movimentati"),
                         "Gruppo specie: ", grp, br(),
                         "Numero di animali importati: ", nrow(df)
