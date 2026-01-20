@@ -402,7 +402,7 @@ app_server <- function(input, output, session) {
                         riga_colore("Animali nati in province non indenni (per qualsiasi malattia):", nati_non_indenni),
                         riga_colore("Animali provenienti da province non indenni (per qualsiasi malattia):", provenienti_non_indenni)
                 )
-		})
+        })
         
         # =====================================================================
         # SEZIONE 7: OUTPUT CONTROLLO MANUALE
