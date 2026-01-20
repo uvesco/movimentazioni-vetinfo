@@ -35,19 +35,11 @@ app_ui <- function() {
 					),
 					# Pannello principale con informazioni sul file caricato
 					mainPanel(
-						fluidRow(
-							column(
-								8,
-								verbatimTextOutput("tipo_file"),      # Messaggio stato caricamento
-								uiOutput("n_animali"),                 # Conteggio animali
-								uiOutput("titolo_malattie"),           # Titolo sezione malattie
-								tableOutput("malattie_importate")      # Tabella malattie rilevanti
-							),
-							column(
-								4,
-								uiOutput("riepilogo_controlli")
-							)
-						)
+						verbatimTextOutput("tipo_file"),      # Messaggio stato caricamento
+						uiOutput("n_animali"),                 # Conteggio animali
+						uiOutput("titolo_malattie"),           # Titolo sezione malattie
+						tableOutput("malattie_importate"),     # Tabella malattie rilevanti
+						uiOutput("riepilogo_controlli")
 					)
 				)
 			),

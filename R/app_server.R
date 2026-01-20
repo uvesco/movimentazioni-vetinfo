@@ -327,7 +327,7 @@ app_server <- function(input, output, session) {
         output$titolo_malattie <- renderUI({
                 grp <- gruppo()
                 req(grp)
-                h4("Malattie rilevanti per il gruppo")
+                h4("Malattie rilevanti per il gruppo specie")
         })
         
         # Tabella malattie importate e rilevanti per il gruppo
