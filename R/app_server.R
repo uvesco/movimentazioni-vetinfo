@@ -512,22 +512,26 @@ app_server <- function(input, output, session) {
                 grp <- gruppo()
                 req(df, grp)
                 
-                data_inizio <- NA
-                data_fine <- NA
-                if ("ingresso_data" %in% names(df)) {
-                        date_vals <- parse_ingresso_date(df$ingresso_data)
-                        valid_dates <- !is.na(date_vals)
-                        if (any(valid_dates)) {
-                                years <- suppressWarnings(as.integer(format(date_vals, "%Y")))
-                                valid_dates <- valid_dates & !is.na(years) & years >= 1900 & years <= 2100
-                        }
-                        if (any(valid_dates)) {
-                                data_inizio <- format(min(date_vals[valid_dates]), "%d/%m/%Y")
-                                data_fine <- format(max(date_vals[valid_dates]), "%d/%m/%Y")
-                        }
-                }
-                data_inizio_label <- ifelse(is.na(data_inizio), "N/D", data_inizio)
-                data_fine_label <- ifelse(is.na(data_fine), "N/D", data_fine)
+                # data_inizio <- NA
+                # data_fine <- NA
+                # if ("ingresso_data" %in% names(df)) {
+                #         date_vals <- parse_ingresso_date(df$ingresso_data)
+                #         valid_dates <- !is.na(date_vals)
+                #         if (any(valid_dates)) {
+                #                 years <- suppressWarnings(as.integer(format(date_vals, "%Y")))
+                #                 valid_dates <- valid_dates & !is.na(years) & years >= 1900 & years <= 2100
+                #         }
+                #         if (any(valid_dates)) {
+                #                 data_inizio <- format(min(date_vals[valid_dates]), "%d/%m/%Y")
+                #                 data_fine <- format(max(date_vals[valid_dates]), "%d/%m/%Y")
+                #         }
+                # }
+                # data_inizio_label <- ifelse(is.na(data_inizio), "N/D", data_inizio)
+                # data_fine_label <- ifelse(is.na(data_fine), "N/D", data_fine)
+                data_inizio <- min(as.Date(df$ingresso_data, format = "%d/%m/%Y"), na.rm = TRUE)
+                data_fine <- max(as.Date(df$ingresso_data, format = "%d/%m/%Y"), na.rm = TRUE)
+                data_inizio_label <- ifelse(is.finite(data_inizio), format(data_inizio, "%d/%m/%Y"), "N/D")
+                data_fine_label <- ifelse(is.finite(data_fine), format(data_fine, "%d/%m/%Y"), "N/D")
                 
                 div(
                         bs_icon("info-circle-fill"), em("Informazioni"), br(),
@@ -536,7 +540,7 @@ app_server <- function(input, output, session) {
                         "Data fine: ", data_fine_label, br(),
                         h4("Animali movimentati"),
                         "Gruppo specie: ", grp, br(),
-                        "Numero di animali importati: ", nrow(df)
+                        "Animali movimentati: ", nrow(df)
                 )
         })
         
