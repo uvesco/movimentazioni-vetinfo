@@ -315,8 +315,24 @@ app_server <- function(input, output, session) {
                 df <- animali()
                 grp <- gruppo()
                 req(df, grp)
+                
+                data_inizio <- NA
+                if ("ingresso_data" %in% names(df)) {
+                        date_vals <- df$ingresso_data
+                        date_vals <- suppressWarnings(as.Date(date_vals))
+                        if (all(is.na(date_vals)) && is.numeric(df$ingresso_data)) {
+                                date_vals <- suppressWarnings(as.Date(df$ingresso_data, origin = "1899-12-30"))
+                        }
+                        if (!all(is.na(date_vals))) {
+                                data_inizio <- format(min(date_vals, na.rm = TRUE), "%d/%m/%Y")
+                        }
+                }
+                data_inizio_label <- ifelse(is.na(data_inizio), "N/D", data_inizio)
+                
                 div(
                         bs_icon("info-circle-fill"), em("Informazioni"), br(),
+                        h4("Date"),
+                        "Data inizio: ", data_inizio_label, br(),
                         h4("Animali movimentati"),
                         "Gruppo specie: ", grp, br(),
                         "Numero di animali importati: ", nrow(df)
