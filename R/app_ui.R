@@ -5,7 +5,7 @@
 # L'app è organizzata in tab per gestire diverse funzionalità:
 # - Input: caricamento file movimentazioni
 # - Help: documentazione e guida utente (sempre visibile)
-# - Tab dinamici: Controllo Manuale, Provenienze, Nascite, Output
+# - Tab dinamici: Controllo Manuale, Provenienze, Nascite, Dataset
 #   (mostrati solo quando necessario dopo il caricamento dati) 
 # =============================================================================
 
@@ -32,7 +32,10 @@ app_ui <- function() {
 					# Pannello laterale con widget di upload
 					sidebarPanel(
 						mod_upload_movimentazioni_ui("upload_mov"),
-						verbatimTextOutput("tipo_file")
+						div(
+							style = "white-space: pre-wrap; word-wrap: break-word;",
+							textOutput("tipo_file")
+						)
 					),
 					# Pannello principale con informazioni sul file caricato
 					mainPanel(
@@ -53,84 +56,105 @@ app_ui <- function() {
 				value = "help",
 				
 				# Contenuto Help in formato Markdown-like
-				div(
-					class = "container-fluid",
-					style = "max-width: 900px; padding: 20px;",
-					
-					h2("Guida all'utilizzo"),
-					hr(),
-					
-					h3("1. Introduzione"),
-					p("Questa applicazione permette di elaborare le movimentazioni animali esportate dalla BDN 
-					   e verificare lo stato sanitario delle zone di provenienza e nascita degli animali."),
-					
-					h3("2. Caricamento File"),
-					h4("2.1 Formati supportati"),
-					tags$ul(
-						tags$li("File Excel .xls (formato originale BDN)"),
-						tags$li("File compressi .gz (file .xls compressi)")
+				fluidRow(
+					column(
+						3,
+						div(
+							class = "small",
+							h4("Indice"),
+							tags$ul(
+								tags$li(tags$a(href = "#help-introduzione", "Introduzione")),
+								tags$li(tags$a(href = "#help-caricamento", "Caricamento file")),
+								tags$li(tags$a(href = "#help-elaborazione", "Elaborazione dati")),
+								tags$li(tags$a(href = "#help-risultati", "Tab risultati")),
+								tags$li(tags$a(href = "#help-download", "Download")),
+								tags$li(tags$a(href = "#help-note", "Note tecniche")),
+								tags$li(tags$a(href = "#help-debug", "Debug"))
+							)
+						)
 					),
-					
-					h4("2.2 Gruppi specie supportati"),
-					tags$ul(
-						tags$li("Bovini"),
-						tags$li("Ovicaprini")
-					),
-					
-					h3("3. Elaborazione Dati"),
-					h4("3.1 Classificazione origine"),
-					p("Gli animali vengono classificati come 'Italia' o 'Estero' basandosi su:"),
-					tags$ul(
-						tags$li("Prefisso 'IT' nel marchio auricolare"),
-						tags$li("Motivo di ingresso nella tabella decodifiche")
-					),
-					
-					h4("3.2 Estrazione dati geografici"),
-					p("Per ogni animale vengono estratti:"),
-					tags$ul(
-						tags$li("Provincia di nascita: dalle prime 3 cifre del marchio auricolare"),
-						tags$li("Comune di provenienza: dal codice stabilimento di origine")
-					),
-					
-					h4("3.3 Incrocio con dati malattie"),
-					p("I dati geografici vengono incrociati con le tabelle delle malattie per verificare:"),
-					tags$ul(
-						tags$li("Stato sanitario del comune di provenienza (prefisso prov_)"),
-						tags$li("Stato sanitario della provincia di nascita (prefisso nascita_)")
-					),
-					
-					h3("4. Tab Risultati"),
-					h4("4.1 Controllo Manuale"),
-					p("Mostra gli animali italiani per cui non è stato possibile identificare:"),
-					tags$ul(
-						tags$li("Il comune di provenienza (codice stabilimento non valido)"),
-						tags$li("La provincia di nascita (marchio auricolare non mappabile)")
-					),
-					
-					h4("4.2 Provenienze"),
-					p("Mostra gli animali provenienti da comuni/zone non indenni per le malattie considerate."),
-					
-					h4("4.3 Nascite"),
-					p("Mostra gli animali nati in province non indenni per le malattie considerate."),
-					
-					h4("4.4 Output"),
-					p("Contiene il dataset completo con tutti i dati animali e lo stato sanitario delle malattie, scaricabile in Excel."),
-					
-					h3("5. Download"),
-					p("Ogni tab con tabelle permette il download dei dati in formato Excel."),
-					
-					hr(),
-					h3("6. Note tecniche"),
-					tags$ul(
-						tags$li("TRUE = zona indenne (disease-free)"),
-						tags$li("FALSE = zona non indenne"),
-						tags$li("Le malattie sono filtrate in base alla data di validità")
-					),
-					
-					hr(),
-					h2("Debug"),
-					p("Download del file importato con tutti i merge effettuati (incluse le malattie) e con animali esteri, in formato .xlsx, utile per la verifica manuale."),
-					downloadButton("download_debug_dataset", "Scarica dataset completo (.xlsx)")
+					column(
+						9,
+						div(
+							class = "container-fluid",
+							style = "max-width: 900px; padding: 20px;",
+							
+							h2(id = "help-guida", "Guida all'utilizzo"),
+							hr(),
+							
+							h3(id = "help-introduzione", "1. Introduzione"),
+							p("Questa applicazione permette di elaborare le movimentazioni animali esportate dalla BDN 
+							   e verificare lo stato sanitario delle zone di provenienza e nascita degli animali."),
+							
+							h3(id = "help-caricamento", "2. Caricamento File"),
+							h4("2.1 Formati supportati"),
+							tags$ul(
+								tags$li("File Excel .xls (formato originale BDN)"),
+								tags$li("File compressi .gz (file .xls compressi)")
+							),
+							
+							h4("2.2 Gruppi specie supportati"),
+							tags$ul(
+								tags$li("Bovini"),
+								tags$li("Ovicaprini")
+							),
+							
+							h3(id = "help-elaborazione", "3. Elaborazione Dati"),
+							h4("3.1 Classificazione origine"),
+							p("Gli animali vengono classificati come 'Italia' o 'Estero' basandosi su:"),
+							tags$ul(
+								tags$li("Prefisso 'IT' nel marchio auricolare"),
+								tags$li("Motivo di ingresso nella tabella decodifiche")
+							),
+							
+							h4("3.2 Estrazione dati geografici"),
+							p("Per ogni animale vengono estratti:"),
+							tags$ul(
+								tags$li("Provincia di nascita: dalle prime 3 cifre del marchio auricolare"),
+								tags$li("Comune di provenienza: dal codice stabilimento di origine")
+							),
+							
+							h4("3.3 Incrocio con dati malattie"),
+							p("I dati geografici vengono incrociati con le tabelle delle malattie per verificare:"),
+							tags$ul(
+								tags$li("Stato sanitario del comune di provenienza (prefisso prov_)"),
+								tags$li("Stato sanitario della provincia di nascita (prefisso nascita_)")
+							),
+							
+							h3(id = "help-risultati", "4. Tab Risultati"),
+							h4("4.1 Controllo Manuale"),
+							p("Mostra gli animali italiani per cui non è stato possibile identificare:"),
+							tags$ul(
+								tags$li("Il comune di provenienza (codice stabilimento non valido)"),
+								tags$li("La provincia di nascita (marchio auricolare non mappabile)")
+							),
+							
+							h4("4.2 Provenienze"),
+							p("Mostra gli animali provenienti da comuni/zone non indenni per le malattie considerate."),
+							
+							h4("4.3 Nascite"),
+							p("Mostra gli animali nati in province non indenni per le malattie considerate."),
+							
+							h4("4.4 Dataset"),
+							p("Contiene il dataset completo con tutti i dati animali e lo stato sanitario delle malattie, scaricabile in Excel."),
+							
+							h3(id = "help-download", "5. Download"),
+							p("Ogni tab con tabelle permette il download dei dati in formato Excel."),
+							
+							hr(),
+							h3(id = "help-note", "6. Note tecniche"),
+							tags$ul(
+								tags$li("TRUE = zona indenne (disease-free)"),
+								tags$li("FALSE = zona non indenne"),
+								tags$li("Le malattie sono filtrate in base alla data di validità")
+							),
+							
+							hr(),
+							h2(id = "help-debug", "Debug"),
+							p("Download del file importato con tutti i merge effettuati (incluse le malattie) e con animali esteri, in formato .xlsx, utile per la verifica manuale."),
+							downloadButton("download_debug_dataset", "Scarica dataset completo (.xlsx)")
+						)
+					)
 				)
 			)
 			

@@ -73,14 +73,14 @@ app_server <- function(input, output, session) {
                 req(gruppo())
                 
                 if (nrow(animali()) > 0 && !tabs_inserite() && isTRUE(file_check())) {
-                        # Inserisce tab "Elaborazione" dopo "input"
+                        # Inserisce tab "Sommario" dopo "input"
                         insertTab(
                                 inputId = "tabs", 
                                 target = "input", 
                                 position = "after",
                                 tab = tabPanel(
-                                        title = "Elaborazione", 
-                                        value = "elaborazione",
+                                        title = "Sommario", 
+                                        value = "sommario",
                                         h3("Informazioni elaborazione"),
                                         textOutput("gruppo_tab"),
                                         hr(),
@@ -88,15 +88,15 @@ app_server <- function(input, output, session) {
                                 )
                         )
 
-                        # Inserisce tab "Output" dopo "elaborazione"
+                        # Inserisce tab "Dataset" dopo "sommario"
                         # Mostra il dataset completo (animali + malattie merge)
                         insertTab(
                                 inputId = "tabs", 
-                                target = "elaborazione", 
+                                target = "sommario", 
                                 position = "after",
                                 tab = tabPanel(
-                                        title = "Output", 
-                                        value = "output",
+                                        title = "Dataset", 
+                                        value = "dataset",
                                         h3("Dataset completo movimentazioni"),
                                         p("Tabella con tutti i dati animali e lo stato sanitario delle zone di provenienza e nascita."),
                                         DT::DTOutput("tabella_output")
@@ -107,8 +107,8 @@ app_server <- function(input, output, session) {
 
                 } else if (nrow(animali()) == 0 && tabs_inserite()) {
                         # Se file vuoto, rimuove i tab
-                        removeTab("tabs", "elaborazione")
-                        removeTab("tabs", "output")
+                        removeTab("tabs", "sommario")
+                        removeTab("tabs", "dataset")
                         tabs_inserite(FALSE)
                 }
         })
@@ -120,10 +120,10 @@ app_server <- function(input, output, session) {
                 req(tabs_inserite())  # Aspetta che i tab base siano inseriti
                 
                 if (nrow(animali()) > 0 && !tabs_disease_inserite() && isTRUE(file_check())) {
-                        # Inserisce tab "Provenienze" dopo "output"
+                        # Inserisce tab "Provenienze" dopo "dataset"
                         insertTab(
                                 inputId = "tabs",
-                                target = "output",
+                                target = "dataset",
                                 position = "after",
                                 tab = tabPanel(
                                         title = "Provenienze",
