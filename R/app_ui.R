@@ -67,6 +67,7 @@ app_ui <- function() {
 								tags$li(tags$a(href = "#help-caricamento", "Caricamento file")),
 								tags$li(tags$a(href = "#help-elaborazione", "Elaborazione dati")),
 								tags$li(tags$a(href = "#help-risultati", "Tab risultati")),
+								tags$li(tags$a(href = "#help-download-bdn", "Download BDN")),
 								tags$li(tags$a(href = "#help-download", "Download")),
 								tags$li(tags$a(href = "#help-note", "Note tecniche")),
 								tags$li(tags$a(href = "#help-disclaimer", "Disclaimer")),
