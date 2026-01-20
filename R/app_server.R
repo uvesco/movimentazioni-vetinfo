@@ -281,10 +281,12 @@ app_server <- function(input, output, session) {
                 lot_id <- crea_lotto_id(df)
                 regioni <- sort(unique(df_regioni$DEN_REG))
                 animali <- vapply(regioni, function(reg) {
-                        sum(df$orig_reg_nome == reg, na.rm = TRUE)
+                        idx <- !is.na(df$orig_reg_nome) & df$orig_reg_nome == reg
+                        sum(idx, na.rm = TRUE)
                 }, integer(1))
                 lotti <- vapply(regioni, function(reg) {
-                        length(unique(lot_id[df$orig_reg_nome == reg]))
+                        idx <- !is.na(df$orig_reg_nome) & df$orig_reg_nome == reg
+                        length(unique(lot_id[idx]))
                 }, integer(1))
                 
                 data.frame(
@@ -311,10 +313,12 @@ app_server <- function(input, output, session) {
                 })
                 
                 animali <- vapply(province, function(prov) {
-                        sum(df$orig_uts_nome == prov, na.rm = TRUE)
+                        idx <- !is.na(df$orig_uts_nome) & df$orig_uts_nome == prov
+                        sum(idx, na.rm = TRUE)
                 }, integer(1))
                 lotti <- vapply(province, function(prov) {
-                        length(unique(lot_id[df$orig_uts_nome == prov]))
+                        idx <- !is.na(df$orig_uts_nome) & df$orig_uts_nome == prov
+                        length(unique(lot_id[idx]))
                 }, integer(1))
                 
                 risultato <- data.frame(
