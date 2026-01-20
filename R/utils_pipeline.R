@@ -63,6 +63,7 @@ parse_ingresso_date <- function(values) {
 		return(as.Date(values))
 	}
 	normalizza_anno_corto <- function(valori) {
+		anno_soglia <- 30
 		pattern <- "^\\s*(\\d{1,2})[/-](\\d{1,2})[/-](\\d{1,2})\\s*$"
 		catture <- regexec(pattern, valori)
 		parts <- regmatches(valori, catture)
@@ -73,10 +74,10 @@ parse_ingresso_date <- function(values) {
 			giorno <- as.integer(parts[[i]][2])
 			mese <- as.integer(parts[[i]][3])
 			anno <- as.integer(parts[[i]][4])
-			if (is.na(giorno) || is.na(mese) || is.na(anno)) {
+			if (is.na(giorno) || is.na(mese) || is.na(anno) || giorno < 1 || giorno > 31 || mese < 1 || mese > 12) {
 				return(valori[i])
 			}
-			anno_esteso <- if (anno <= 30) 2000 + anno else 1900 + anno
+			anno_esteso <- if (anno <= anno_soglia) 2000 + anno else 1900 + anno
 			sprintf("%02d/%02d/%04d", giorno, mese, anno_esteso)
 		}, character(1))
 	}
