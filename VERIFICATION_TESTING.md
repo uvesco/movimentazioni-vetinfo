@@ -50,12 +50,12 @@
 - [ ] Confirm correct group shown
 
 #### Tab: Controllo Manuale
-- [ ] Check "Comune di provenienza non trovato" table
+- [ ] Check "Animali di provenienza nazionale con codice stabilimento di origine non mappabile" table
   - [ ] Table displays correctly
   - [ ] Data is filtered (only Italian animals with NA comune)
   - [ ] Download button works
   - [ ] Excel file contains expected data
-- [ ] Check "Provincia di nascita non trovata" table
+- [ ] Check "Animali nati in Italia con provincia nel marchio auricolare non mappabile" table
   - [ ] Table displays correctly
   - [ ] Data is filtered (only Italian animals with NA provincia)
   - [ ] Download button works

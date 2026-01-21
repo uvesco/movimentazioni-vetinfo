@@ -63,52 +63,35 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 				x
 			}
 			
-			# Prepara colonne normalizzate per il merge
+			# Prepara colonne normalizzate per il match su codice o descrizione
 			df$ingresso_motivo_norm <- normalize_string(df$ingresso_motivo)
 			motivi_norm <- STATIC_MOTIVI_INGRESSO
+			motivi_norm$prov_italia <- as.logical(motivi_norm$prov_italia)
+			motivi_norm$Codice_norm <- normalize_string(motivi_norm$Codice)
 			motivi_norm$Descrizione_norm <- normalize_string(motivi_norm$Descrizione)
 			
-			# Merge con tabella motivi ingresso per ottenere flag prov_italia
-			df <- merge(
-				df,
-				motivi_norm[, c("Descrizione_norm", "prov_italia")],
-				by.x = "ingresso_motivo_norm",
-				by.y = "Descrizione_norm",
-				all.x = TRUE,
-				all.y = FALSE
-			)
+			lookup_cod <- setNames(motivi_norm$prov_italia, motivi_norm$Codice_norm)
+			lookup_desc <- setNames(motivi_norm$prov_italia, motivi_norm$Descrizione_norm)
 			
-			# Rinomina colonna per chiarezza
-			names(df)[names(df) == "prov_italia"] <- "prov_italia_motivo"
+			df$orig_italia_motivo <- lookup_cod[df$ingresso_motivo_norm]
+			missing_idx <- is.na(df$orig_italia_motivo)
+			df$orig_italia_motivo[missing_idx] <- lookup_desc[df$ingresso_motivo_norm][missing_idx]
+			
+			missing_idx <- is.na(df$orig_italia_motivo)
+			df$orig_italia_motivo[missing_idx] <- is_italian_establishment[missing_idx]
 			
 			# Rimuove colonna temporanea
 			df$ingresso_motivo_norm <- NULL
 			
-			# Calcola provenienza italia con logica AND stretta:
-			# - Se entrambi TRUE → TRUE (italia)
-			# - Se entrambi FALSE → FALSE (estero)
-			# - Altrimenti → NA (ignoto)
-			and_strict <- function(A, B) {
-				if (isTRUE(A) && isTRUE(B)) {
-					TRUE
-				} else if (isFALSE(A) && isFALSE(B)) {
-					FALSE
-				} else {
-					NA
-				}
-			}
-			
-			df$orig_italia <- mapply(
-				and_strict,
-				is_italian_establishment,
-				df$prov_italia_motivo
-			)
+			df$orig_italia <- df$orig_italia_motivo
 			
 			# -----------------------------------------------------------------
 			# STEP 2: Estrazione provincia di nascita
 			# -----------------------------------------------------------------
 			# Estrae COD_UTS dal marchio auricolare usando mapping storico
-			df$cod_uts_nascita <- estrai_provincia_nascita(df$capo_identificativo, df_province)
+			df$nascita_uts_cod <- estrai_provincia_nascita(df$capo_identificativo, df_province)
+			ear_tag <- as.character(df$capo_identificativo)
+			df$nascita_italia <- ifelse(is.na(ear_tag), FALSE, grepl("^IT", ear_tag, ignore.case = TRUE))
 			
 			# -----------------------------------------------------------------
 			# STEP 3: Estrazione comune di provenienza
@@ -184,7 +167,7 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 				df <- merge(
 					df,
 					df_province_malattie,
-					by.x = "cod_uts_nascita",
+					by.x = "nascita_uts_cod",
 					by.y = "COD_UTS",
 					all.x = TRUE,
 					suffixes = c("", ".y")
@@ -202,6 +185,78 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 				}
 			}
 			
+			# -----------------------------------------------------------------
+			# STEP 6: Rinomina colonne origine e aggiunge nomi geografici
+			# -----------------------------------------------------------------
+			if ("PRO_COM_T_prov" %in% names(df)) {
+				names(df)[names(df) == "PRO_COM_T_prov"] <- "orig_comune_cod"
+			}
+			if ("COD_REG" %in% names(df)) {
+				names(df)[names(df) == "COD_REG"] <- "orig_reg_cod"
+			}
+			if ("COD_UTS" %in% names(df)) {
+				names(df)[names(df) == "COD_UTS"] <- "orig_uts_cod"
+			}
+			if (!"orig_reg_cod" %in% names(df) && "orig_comune_cod" %in% names(df)) {
+				df$orig_reg_cod <- df_comuni$COD_REG[match(df$orig_comune_cod, df_comuni$PRO_COM_T)]
+			}
+			if (!"orig_uts_cod" %in% names(df) && "orig_comune_cod" %in% names(df)) {
+				df$orig_uts_cod <- df_comuni$COD_UTS[match(df$orig_comune_cod, df_comuni$PRO_COM_T)]
+			}
+			if ("orig_reg_cod" %in% names(df)) {
+				df$orig_reg_nome <- df_regioni$DEN_REG[match(df$orig_reg_cod, df_regioni$COD_REG)]
+			}
+			if ("orig_uts_cod" %in% names(df)) {
+				df$orig_uts_nome <- df_province$DEN_UTS[match(df$orig_uts_cod, df_province$COD_UTS)]
+			}
+			if ("orig_comune_cod" %in% names(df)) {
+				df$orig_comune_nome <- df_comuni$COMUNE[match(df$orig_comune_cod, df_comuni$PRO_COM_T)]
+			}
+			if ("nascita_uts_cod" %in% names(df)) {
+				df$nascita_reg_cod <- df_province$COD_REG[match(df$nascita_uts_cod, df_province$COD_UTS)]
+				df$nascita_uts_nome <- df_province$DEN_UTS[match(df$nascita_uts_cod, df_province$COD_UTS)]
+			}
+			if ("nascita_reg_cod" %in% names(df)) {
+				df$nascita_reg_nome <- df_regioni$DEN_REG[match(df$nascita_reg_cod, df_regioni$COD_REG)]
+			}
+			
+			# Ordina colonne per leggibilità
+			current_cols <- names(df)
+			orig_cols <- current_cols[grepl("^orig_", current_cols)]
+			orig_geo_order <- c(
+				"orig_reg_cod",
+				"orig_uts_cod",
+				"orig_comune_cod",
+				"orig_reg_nome",
+				"orig_uts_nome",
+				"orig_comune_nome"
+			)
+			orig_cols_base <- orig_cols[!orig_cols %in% orig_geo_order]
+			orig_cols_ordered <- c(orig_cols_base, orig_geo_order[orig_geo_order %in% orig_cols])
+			prov_cols <- current_cols[grepl("^prov_", current_cols)]
+			nascita_cols <- current_cols[grepl("^nascita_", current_cols)]
+			nascita_disease_cols <- setdiff(
+				nascita_cols,
+				c("nascita_italia", "nascita_reg_cod", "nascita_reg_nome", "nascita_uts_cod", "nascita_uts_nome")
+			)
+			other_cols <- current_cols[!current_cols %in% c(orig_cols, prov_cols, nascita_cols)]
+			priority_cols <- c("capo_identificativo", "capo_identificativo_elettronico", "ingresso_data", "ingresso_motivo")
+			other_cols <- other_cols[!other_cols %in% priority_cols]
+			
+			new_order <- c(
+				intersect(priority_cols, current_cols),
+				other_cols,
+				orig_cols_ordered,
+				prov_cols,
+				intersect("nascita_italia", current_cols),
+				intersect("nascita_reg_cod", current_cols),
+				intersect("nascita_reg_nome", current_cols),
+				intersect("nascita_uts_cod", current_cols),
+				intersect("nascita_uts_nome", current_cols),
+				nascita_disease_cols
+			)
+			df <- df[, unique(new_order), drop = FALSE]
+			
 			return(df)
 		})
 		
@@ -215,9 +270,9 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			req(dati_processati())
 			df <- dati_processati()
 			
-			# Filtra: italiani (orig_italia == TRUE) con PRO_COM_T_prov = NA
+			# Filtra: italiani (orig_italia == TRUE) con orig_comune_cod = NA
 			animali_invalid <- df[
-				is.na(df$PRO_COM_T_prov) & df$orig_italia == TRUE & !is.na(df$orig_italia),
+				is.na(df$orig_comune_cod) & df$orig_italia == TRUE & !is.na(df$orig_italia),
 				"capo_identificativo"
 			]
 			
@@ -232,7 +287,7 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			# Crea dataframe con tipo errore
 			df_invalid <- crea_dataframe_validazione(
 				df,
-				campo_geografico = "PRO_COM_T_prov",
+				campo_geografico = "orig_comune_cod",
 				tipo_validazione = "comune_provenienza_non_valido"
 			)
 			
@@ -249,9 +304,9 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			req(dati_processati())
 			df <- dati_processati()
 			
-			# Filtra: italiani (orig_italia == TRUE) con cod_uts_nascita = NA
+			# Filtra: nati in Italia (nascita_italia == TRUE) con nascita_uts_cod = NA
 			animali_invalid <- df[
-				is.na(df$cod_uts_nascita) & df$orig_italia == TRUE & !is.na(df$orig_italia),
+				is.na(df$nascita_uts_cod) & df$nascita_italia == TRUE & !is.na(df$nascita_italia),
 				"capo_identificativo"
 			]
 			
@@ -265,8 +320,9 @@ mod_pipeline_controlli_server <- function(id, animali, gruppo, malattie_data) {
 			
 			df_invalid <- crea_dataframe_validazione(
 				df,
-				campo_geografico = "cod_uts_nascita",
-				tipo_validazione = "provincia_nascita_non_valida"
+				campo_geografico = "nascita_uts_cod",
+				tipo_validazione = "provincia_nascita_non_valida",
+				colonna_italia = "nascita_italia"
 			)
 			
 			return(df_invalid)

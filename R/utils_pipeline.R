@@ -42,6 +42,92 @@ normalize_stab_code <- function(x) {
 }
 
 # =============================================================================
+# FUNZIONE 0B: PARSE DATA INGRESSO
+# =============================================================================
+# Converte valori data (Date, stringhe data o numerici Excel) in Date.
+# Excel memorizza le date come giorni trascorsi dal 1899-12-30 (epoca Windows).
+# Nota: la conversione non corregge l'anomalia del 1900 bisestile (Excel).
+#
+# PARAMETRI:
+# - values: vettore di date (Date), stringhe o numerici Excel
+#
+# RITORNA:
+# - vettore Date con valori convertiti o NA se non convertibile
+# =============================================================================
+parse_ingresso_date <- function(values) {
+	excel_epoch <- as.Date("1899-12-30")
+	if (inherits(values, "Date")) {
+		return(values)
+	}
+	if (inherits(values, "POSIXt")) {
+		return(as.Date(values))
+	}
+	normalizza_anno_corto <- function(valori) {
+		anno_soglia <- 30  # Anni 00-30 -> 2000, 31-99 -> 1900
+		pattern <- "^\\s*(\\d{1,2})[/-\\.](\\d{1,2})[/-\\.](\\d{1,2})\\s*$"
+		catture <- regexec(pattern, valori)
+		parts <- regmatches(valori, catture)
+		vapply(seq_along(valori), function(i) {
+			if (length(parts[[i]]) != 4) {
+				return(valori[i])
+			}
+			giorno <- as.integer(parts[[i]][2])
+			mese <- as.integer(parts[[i]][3])
+			anno <- as.integer(parts[[i]][4])
+			if (is.na(giorno) || is.na(mese) || is.na(anno) || giorno < 1 || giorno > 31 || mese < 1 || mese > 12) {
+				return(valori[i])
+			}
+			anno_esteso <- if (anno <= anno_soglia) 2000 + anno else 1900 + anno
+			data_candidata <- sprintf("%02d/%02d/%04d", giorno, mese, anno_esteso)
+			if (is.na(suppressWarnings(as.Date(data_candidata, format = "%d/%m/%Y")))) {
+				return(valori[i])
+			}
+			data_candidata
+		}, character(1))
+	}
+	valori <- trimws(as.character(values))
+	valori[valori == ""] <- NA_character_
+	valori <- normalizza_anno_corto(valori)
+	parsed <- suppressWarnings(as.Date(valori))
+	formati <- c(
+		"%d/%m/%Y",
+		"%d-%m-%Y",
+		"%d.%m.%Y",
+		"%d/%m/%Y %H:%M:%S",
+		"%d/%m/%Y %H:%M",
+		"%d-%m-%Y %H:%M:%S",
+		"%d-%m-%Y %H:%M",
+		"%d.%m.%Y %H:%M:%S",
+		"%d.%m.%Y %H:%M",
+		"%Y/%m/%d",
+		"%Y-%m-%d %H:%M:%S",
+		"%Y-%m-%d %H:%M",
+		"%Y-%m-%dT%H:%M:%S",
+		"%Y-%m-%dT%H:%M",
+		"%Y-%m-%d"
+	)
+	for (formato in formati) {
+		if (!any(is.na(parsed))) {
+			break
+		}
+		parsed_alt <- suppressWarnings(as.Date(valori, format = formato))
+		aggiorna_idx <- is.na(parsed) & !is.na(parsed_alt)
+		parsed[aggiorna_idx] <- parsed_alt[aggiorna_idx]
+	}
+	numeric_values <- suppressWarnings(as.numeric(values))
+	numeric_idx <- is.na(parsed) & !is.na(numeric_values)
+	if (any(numeric_idx)) {
+		range_idx <- numeric_values[numeric_idx] >= 1 & numeric_values[numeric_idx] <= 50000
+		if (any(range_idx)) {
+			parsed[numeric_idx][range_idx] <- suppressWarnings(
+				as.Date(numeric_values[numeric_idx][range_idx], origin = excel_epoch)
+			)
+		}
+	}
+	parsed
+}
+
+# =============================================================================
 # FUNZIONE 1 [DEPRECATA]: CLASSIFICA ORIGINE
 # =============================================================================
 # NOTA: Questa funzione non è più utilizzata nella pipeline principale.
@@ -61,7 +147,7 @@ normalize_stab_code <- function(x) {
 # - motivi_ingresso_table: tabella decodifica con colonne 'Descrizione' e 'prov_italia'
 #
 # RITORNA:
-# - df con nuova colonna 'orig_italia' (TRUE=Italia, FALSE=Estero, NA=Ignoto)
+# - df con nuove colonne 'orig_italia' e 'orig_italia_motivo'
 # =============================================================================
 classifica_origine <- function(df, motivi_ingresso_table) {
 	# # Prima verifica: il marchio auricolare inizia con IT?
@@ -84,42 +170,26 @@ classifica_origine <- function(df, motivi_ingresso_table) {
 	}
 	
 	
-	# Creo copie normalizzate per il join
+	# Creo copie normalizzate per il match su codice o descrizione
 	df$ingresso_motivo_norm <- normalize_string(df$ingresso_motivo)
+	motivi_ingresso_table$prov_italia <- as.logical(motivi_ingresso_table$prov_italia)
+	motivi_ingresso_table$Codice_norm <- normalize_string(motivi_ingresso_table$Codice)
 	motivi_ingresso_table$Descrizione_norm <- normalize_string(motivi_ingresso_table$Descrizione)
 	
-	# Merge robusto
-	df <- merge(
-		df,
-		motivi_ingresso_table[, c("Descrizione_norm", "prov_italia")],
-		by.x = "ingresso_motivo_norm",
-		by.y = "Descrizione_norm",
-		all.x = TRUE,
-		all.y = FALSE
-	)
+	lookup_cod <- setNames(motivi_ingresso_table$prov_italia, motivi_ingresso_table$Codice_norm)
+	lookup_desc <- setNames(motivi_ingresso_table$prov_italia, motivi_ingresso_table$Descrizione_norm)
 	
-	# rinomino prov_italia con prov_italia_motivo
-	names(df)[names(df) == "prov_italia"] <- "prov_italia_motivo"
+	df$orig_italia_motivo <- lookup_cod[df$ingresso_motivo_norm]
+	missing_idx <- is.na(df$orig_italia_motivo)
+	df$orig_italia_motivo[missing_idx] <- lookup_desc[df$ingresso_motivo_norm][missing_idx]
+	
+	missing_idx <- is.na(df$orig_italia_motivo)
+	df$orig_italia_motivo[missing_idx] <- is_italian_establishment[missing_idx]
 	
 	# Elimino modifica temporanea
 	df$ingresso_motivo_norm <- NULL
 	
-# prov_italia definitivo
-	and_strict <- function(A, B) {
-		if (isTRUE(A) && isTRUE(B)) {
-			TRUE
-		} else if (isFALSE(A) && isFALSE(B)) {
-			FALSE
-		} else {
-			NA
-		}
-	}
-	
-	df$orig_italia <- mapply(
-		and_strict,
-		is_italian_establishment,
-		df$prov_italia_motivo
-	)
+	df$orig_italia <- df$orig_italia_motivo
 	
 
 	
@@ -298,22 +368,24 @@ merge_malattie_con_prefisso <- function(df_animali, df_malattie, by_animali, by_
 # - campo_geografico è NA (codice non trovato/mappato)
 #
 # PARAMETRI:
-# - df_animali: dataframe animali con colonna 'orig_italia'
-# - campo_geografico: nome della colonna da verificare (es. "PRO_COM_T_prov")
+# - df_animali: dataframe animali con colonna Italia (default orig_italia)
+# - campo_geografico: nome della colonna da verificare (es. "orig_comune_cod")
 # - tipo_validazione: etichetta per il tipo di errore
+# - colonna_italia: nome colonna booleana per filtro Italia (default "orig_italia")
 #
 # RITORNA:
 # - dataframe con animali non validi e colonna tipo_errore
 # =============================================================================
-crea_dataframe_validazione <- function(df_animali, campo_geografico, tipo_validazione) {
+crea_dataframe_validazione <- function(df_animali, campo_geografico, tipo_validazione, colonna_italia = "orig_italia") {
 	# Filtra: animali italiani con campo geografico NA
+	is_italia <- df_animali[[colonna_italia]]
 	df_invalid <- df_animali[
 		is.na(df_animali[[campo_geografico]]) & 
-		df_animali$orig_italia == TRUE & !is.na(df_animali$orig_italia),
+		is_italia == TRUE & !is.na(is_italia),
 	]
 	
 	# Aggiunge colonna descrittiva del tipo di errore
-	df_invalid$tipo_errore <- tipo_validazione
+	df_invalid$tipo_errore <- rep(tipo_validazione, nrow(df_invalid))
 	
 	return(df_invalid)
 }
