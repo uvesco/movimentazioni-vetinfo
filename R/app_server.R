@@ -1064,7 +1064,13 @@ app_server <- function(input, output, session) {
                         prov_non_indenni <- tryCatch(pipeline$animali_provenienza_non_indenni(), error = function(e) list())
                         nasc_non_indenni <- tryCatch(pipeline$animali_nascita_non_indenni(), error = function(e) list())
                         
-                        # Combina le liste
+                        # Combina le liste con nomi univoci per evitare conflitti
+                        if (length(prov_non_indenni) > 0) {
+                                names(prov_non_indenni) <- paste0("prov_", names(prov_non_indenni))
+                        }
+                        if (length(nasc_non_indenni) > 0) {
+                                names(nasc_non_indenni) <- paste0("nascita_", names(nasc_non_indenni))
+                        }
                         combined_list <- c(prov_non_indenni, nasc_non_indenni)
                         n_animali <- conta_animali_da_esportare(combined_list)
                         
@@ -1079,6 +1085,13 @@ app_server <- function(input, output, session) {
                         nasc_non_indenni <- tryCatch(pipeline$animali_nascita_non_indenni(), error = function(e) list())
                         
                         tryCatch({
+                                # Combina le liste con nomi univoci per evitare conflitti
+                                if (length(prov_non_indenni) > 0) {
+                                        names(prov_non_indenni) <- paste0("prov_", names(prov_non_indenni))
+                                }
+                                if (length(nasc_non_indenni) > 0) {
+                                        names(nasc_non_indenni) <- paste0("nascita_", names(nasc_non_indenni))
+                                }
                                 combined_list <- c(prov_non_indenni, nasc_non_indenni)
                                 n_animali <- conta_animali_da_esportare(combined_list)
                                 
