@@ -204,6 +204,29 @@ app_ui <- function() {
 			# - Controllo Manuale: ci sono animali con dati geografici non validi
 			# - Provenienze/Nascite: dopo il caricamento di un file valido
 			# Vedi app_server.R per la logica di inserimento dinamico
+		),
+		
+		# =====================================================================
+		# FOOTER: Informazioni autore, licenza e disclaimer
+		# =====================================================================
+		tags$footer(
+			style = "background-color: #f5f5f5; border-top: 1px solid #ddd; padding: 15px; margin-top: 30px; text-align: center; font-size: 12px; color: #666;",
+			tags$p(
+				style = "margin: 5px 0;",
+				tags$strong("Autore:"), " Umberto Vesco (ASLTO3)"
+			),
+			tags$p(
+				style = "margin: 5px 0;",
+				"Questa applicazione è rilasciata sotto licenza ", 
+				tags$strong("GNU GPL 3.0"),
+				" - ",
+				tags$a(href = "https://www.gnu.org/licenses/gpl-3.0.html", target = "_blank", "Maggiori informazioni")
+			),
+			tags$p(
+				style = "margin: 5px 0; font-style: italic;",
+				tags$strong("Disclaimer:"), " Questa applicazione è fornita SENZA ALCUNA GARANZIA. ",
+				"L'uso è a proprio rischio e pericolo. Si invita a verificare i dati e i risultati ottenuti."
+			)
 		)
 	)
 }
