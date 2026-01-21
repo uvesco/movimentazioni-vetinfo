@@ -92,6 +92,12 @@ crea_zip_bdn_export <- function(liste_malattie, tipo = "provenienze", max_righe_
 			for (j in seq_along(chunk)) {
 				# Converte la stringa a Windows-1252
 				line_bytes <- iconv(chunk[j], from = "UTF-8", to = "Windows-1252", toRaw = TRUE)[[1]]
+				
+				# Se la conversione fallisce, usa la stringa originale come ASCII
+				if (is.null(line_bytes)) {
+					line_bytes <- charToRaw(chunk[j])
+				}
+				
 				writeBin(line_bytes, con)
 				# Aggiunge CRLF (Windows line ending)
 				writeBin(as.raw(c(0x0D, 0x0A)), con)
@@ -179,6 +185,12 @@ crea_txt_bdn_export <- function(liste_malattie, tipo = "provenienze", max_righe 
 		for (i in seq_along(codici_animali)) {
 			# Converte la stringa a Windows-1252
 			line_bytes <- iconv(codici_animali[i], from = "UTF-8", to = "Windows-1252", toRaw = TRUE)[[1]]
+			
+			# Se la conversione fallisce, usa la stringa originale come ASCII
+			if (is.null(line_bytes)) {
+				line_bytes <- charToRaw(codici_animali[i])
+			}
+			
 			writeBin(line_bytes, con)
 			# Aggiunge CRLF (Windows line ending)
 			writeBin(as.raw(c(0x0D, 0x0A)), con)
