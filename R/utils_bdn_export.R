@@ -85,15 +85,10 @@ crea_zip_bdn_export <- function(liste_malattie, tipo = "provenienze", max_righe_
 		file_paths[i] <- file_path
 		
 		# Scrive il file con codifica Windows-1252 (ANSI)
-		# Usa writeLines con fileEncoding per garantire la codifica corretta
-		writeLines(chunk, con = file_path, useBytes = FALSE)
-		
-		# Converte il file alla codifica Windows-1252
-		# Legge come UTF-8 e riscrive come Windows-1252
-		temp_content <- readLines(file_path, encoding = "UTF-8")
+		# Apre la connessione con encoding specificato
 		con <- file(file_path, open = "w", encoding = "Windows-1252")
 		tryCatch({
-			writeLines(temp_content, con = con)
+			writeLines(chunk, con = con)
 		}, finally = {
 			close(con)
 		})
