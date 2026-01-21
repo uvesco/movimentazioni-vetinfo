@@ -129,7 +129,12 @@ app_ui <- function() {
 								tags$li("File compressi .gz (file .xls compressi come da BDN)")
 							),
 							
-							h4("3.2 Gruppi specie supportati"),
+							h4("3.2 Caricamento multiplo"),
+							p("È possibile caricare più file contemporaneamente selezionandoli nella finestra di dialogo. ",
+							  "Tutti i file devono appartenere allo stesso gruppo di specie. ",
+							  "Se i file appartengono a gruppi diversi, verrà mostrato un errore."),
+							
+							h4("3.3 Gruppi specie supportati"),
 							tags$ul(
 								tags$li("Bovini e bufalini"),
 								tags$li("Ovicaprini")
@@ -165,13 +170,17 @@ app_ui <- function() {
 								tags$li("La provincia di nascita (marchio auricolare non mappabile)")
 							),
 							
-							h4("5.2 Provenienze"),
-							p("Mostra gli animali provenienti da comuni/zone non indenni per le malattie considerate."),
+							h4("5.2 Non Indenni"),
+							p("Tab unificato che mostra gli animali provenienti o nati in zone non indenni per le malattie considerate:"),
+							tags$ul(
+								tags$li("Diagnostica riepilogativa con conteggio animali a rischio"),
+								tags$li("Tabella riepilogativa per stabilimento di destinazione"),
+								tags$li("Download file BDN per tutti gli animali a rischio"),
+								tags$li("Sezione Provenienze con download per malattia"),
+								tags$li("Sezione Nascite con download per malattia")
+							),
 							
-							h4("5.3 Nascite"),
-							p("Mostra gli animali nati in province non indenni per le malattie considerate."),
-							
-							h4("5.4 Dataset"),
+							h4("5.3 Dataset"),
 							p("Contiene il dataset completo con tutti i dati animali e lo stato sanitario delle malattie, scaricabile in Excel."),
 							
 							h3(id = "help-download", "6. Download"),

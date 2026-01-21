@@ -8,11 +8,12 @@ mod_upload_movimentazioni_ui <- function(id) {                      # interfacci
                 class = "mb-3",                                     # classe CSS per margine
                 shiny::fileInput(                                   # widget di caricamento file
                         ns("file"),                                 # identificatore con namespace
-                        "Seleziona file (.xls oppure .gz)",         # testo mostrato all'utente
+                        "Seleziona uno o più file (.xls oppure .gz)",  # testo mostrato all'utente
                         accept = c(".xls", ".gz"),                  # tipi di file accettati
                         buttonLabel = "Sfoglia…",                  # etichetta del bottone
+                        multiple = TRUE                             # permette selezione multipla
                 ),
-                shiny::helpText("Il file deve essere il .xls originale oppure lo stesso compresso come .gz.") # nota informativa
+                shiny::helpText("È possibile caricare più file contemporaneamente, purché siano tutti dello stesso gruppo di specie. I file devono essere i .xls originali oppure gli stessi compressi come .gz.") # nota informativa
         )
 }
 
@@ -210,34 +211,79 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         }
 
                         req(input$file$datapath)                          # verifica che il percorso esista
+                        
+                        # Ottieni lista di file (singolo o multiplo)
+                        file_paths <- input$file$datapath
+                        file_names <- input$file$name
+                        n_files <- length(file_paths)
+                        
                         withProgress(message = "Lettura file…", value = 0.1, {   # mostra barra di avanzamento
-                                df <- tryCatch(                           # gestisce errori durante la lettura del file
-                                        read_mov_xls_or_gz(input$file$datapath, orig_name = input$file$name), # legge il file
-                                        error = function(e) {
-                                                notify_upload_issue(e$message)  # mostra messaggio di errore
-                                                NULL                      # restituisce NULL in caso di errore
+                                
+                                # Lista per memorizzare i dataframe standardizzati e i gruppi
+                                df_list <- list()
+                                gruppi_list <- character(0)
+                                
+                                # Leggi e processa ogni file
+                                for (i in seq_along(file_paths)) {
+                                        incProgress(0.1 / n_files, detail = paste("File", i, "di", n_files))
+                                        
+                                        df <- tryCatch(                           # gestisce errori durante la lettura del file
+                                                read_mov_xls_or_gz(file_paths[i], orig_name = file_names[i]), # legge il file
+                                                error = function(e) {
+                                                        notify_upload_issue(paste("Errore nel file", file_names[i], ":", e$message))  # mostra messaggio di errore
+                                                        NULL                      # restituisce NULL in caso di errore
+                                                }
+                                        )
+                                        
+                                        if (is.null(df)) {                        # se la lettura è fallita
+                                                dati(NULL)
+                                                gruppo_colonne(NULL)
+                                                nome_file(NULL)
+                                                return()
                                         }
-                                )
+                                        
+                                        standardizzato <- standardize_movimentazioni(df, filename = file_names[i]) # standardizza dati e gruppo
+                                        if (is.null(standardizzato)) {
+                                                dati(NULL)
+                                                gruppo_colonne(NULL)
+                                                nome_file(NULL)
+                                                return()
+                                        }
+                                        
+                                        df_list[[i]] <- standardizzato$animali
+                                        gruppi_list <- c(gruppi_list, standardizzato$gruppo)
+                                }
                                 
-                                if (is.null(df)) {                        # se la lettura è fallita
+                                incProgress(0.4)
+                                
+                                # Verifica che tutti i file appartengano allo stesso gruppo di specie
+                                gruppi_unici <- unique(gruppi_list)
+                                if (length(gruppi_unici) > 1) {
+                                        notify_upload_issue(
+                                                paste("Errore: i file caricati appartengono a gruppi di specie diversi:",
+                                                      paste(gruppi_unici, collapse = ", "),
+                                                      ". Caricare solo file dello stesso gruppo di specie.")
+                                        )
                                         dati(NULL)
                                         gruppo_colonne(NULL)
                                         nome_file(NULL)
                                         return()
                                 }
                                 
-                                incProgress(0.8)                          # aggiorna la progress bar
-                                standardizzato <- standardize_movimentazioni(df, filename = input$file$name) # standardizza dati e gruppo
-                                if (is.null(standardizzato)) {
-                                        dati(NULL)
-                                        gruppo_colonne(NULL)
-                                        nome_file(NULL)
-                                        return()
+                                incProgress(0.2)
+                                
+                                # Combina tutti i dataframe in uno solo
+                                if (length(df_list) == 1) {
+                                        df_combinato <- df_list[[1]]
+                                } else {
+                                        df_combinato <- do.call(rbind, df_list)
                                 }
-
-                                dati(standardizzato$animali)              # salva i dati standardizzati
-                                gruppo_colonne(standardizzato$gruppo)     # salva il gruppo determinato
-                                nome_file(input$file$name)                # salva il nome file originale
+                                
+                                incProgress(0.2)
+                                
+                                dati(df_combinato)                             # salva i dati combinati
+                                gruppo_colonne(gruppi_unici[1])                # salva il gruppo determinato
+                                nome_file(paste(file_names, collapse = ", "))  # salva i nomi file originali
                         })
                 }, ignoreInit = TRUE)                                     # esegue solo dopo il primo caricamento
 
