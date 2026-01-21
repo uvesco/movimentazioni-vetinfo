@@ -88,5 +88,8 @@ df_comuni <- read.csv(
 # (classificazione origine, estrazione codici, merge malattie)
 source("R/utils_pipeline.R")
 
+# Funzioni utility per l'esportazione BDN
+source("R/utils_bdn_export.R")
+
 # Modulo pipeline controlli movimentazioni
 source("R/mod_pipeline_controlli.R")

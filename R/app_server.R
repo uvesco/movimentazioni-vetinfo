@@ -745,7 +745,20 @@ app_server <- function(input, output, session) {
                         )
                 })
                 
-                do.call(tagList, ui_elements)
+                # Aggiunge il pulsante per l'esportazione BDN
+                # Visibile solo se ci sono animali da esportare
+                bdn_button <- div(
+                        style = "margin: 20px 0; padding: 15px; background-color: #f0f8ff; border: 1px solid #4682b4; border-radius: 5px;",
+                        h4("Esportazione per BDN - Interrogazione raffinata"),
+                        p("Scarica un file ZIP contenente i codici identificativi degli animali provenienti da zone non indenni, ",
+                          "formattati per il caricamento nell'interrogazione raffinata BDN (massimo 255 codici per file, codifica ANSI)."),
+                        downloadButton("download_bdn_prov", "Scarica ZIP per BDN", 
+                                       icon = icon("file-zipper"),
+                                       class = "btn-primary")
+                )
+                
+                # Combina il pulsante BDN con gli elementi delle malattie
+                do.call(tagList, c(list(bdn_button, hr()), ui_elements))
         })
         
         # Crea dinamicamente i render e download per ogni malattia (provenienze)
@@ -776,6 +789,34 @@ app_server <- function(input, output, session) {
                         )
                 })
         })
+        
+        # Download handler per esportazione BDN provenienze
+        output$download_bdn_prov <- downloadHandler(
+                filename = function() {
+                        paste0("bdn_export_provenienze_", format(Sys.Date(), "%Y%m%d"), ".zip")
+                },
+                content = function(file) {
+                        req(pipeline$animali_provenienza_non_indenni())
+                        liste_malattie <- pipeline$animali_provenienza_non_indenni()
+                        
+                        tryCatch({
+                                # Crea il file ZIP con la funzione utility
+                                zip_path <- crea_zip_bdn_export(liste_malattie, tipo = "provenienze")
+                                
+                                # Copia il file alla destinazione finale
+                                file.copy(zip_path, file, overwrite = TRUE)
+                                
+                                # Rimuove il file temporaneo
+                                unlink(zip_path)
+                        }, error = function(e) {
+                                showNotification(
+                                        paste("Errore nella creazione del file ZIP:", e$message),
+                                        type = "error",
+                                        duration = 10
+                                )
+                        })
+                }
+        )
         
         # =====================================================================
         # SEZIONE 9: OUTPUT NASCITE
@@ -809,7 +850,20 @@ app_server <- function(input, output, session) {
                         )
                 })
                 
-                do.call(tagList, ui_elements)
+                # Aggiunge il pulsante per l'esportazione BDN
+                # Visibile solo se ci sono animali da esportare
+                bdn_button <- div(
+                        style = "margin: 20px 0; padding: 15px; background-color: #f0f8ff; border: 1px solid #4682b4; border-radius: 5px;",
+                        h4("Esportazione per BDN - Interrogazione raffinata"),
+                        p("Scarica un file ZIP contenente i codici identificativi degli animali nati in zone non indenni, ",
+                          "formattati per il caricamento nell'interrogazione raffinata BDN (massimo 255 codici per file, codifica ANSI)."),
+                        downloadButton("download_bdn_nasc", "Scarica ZIP per BDN", 
+                                       icon = icon("file-zipper"),
+                                       class = "btn-primary")
+                )
+                
+                # Combina il pulsante BDN con gli elementi delle malattie
+                do.call(tagList, c(list(bdn_button, hr()), ui_elements))
         })
         
         # Crea dinamicamente i render e download per ogni malattia (nascite)
@@ -840,5 +894,33 @@ app_server <- function(input, output, session) {
                         )
                 })
         })
+        
+        # Download handler per esportazione BDN nascite
+        output$download_bdn_nasc <- downloadHandler(
+                filename = function() {
+                        paste0("bdn_export_nascite_", format(Sys.Date(), "%Y%m%d"), ".zip")
+                },
+                content = function(file) {
+                        req(pipeline$animali_nascita_non_indenni())
+                        liste_malattie <- pipeline$animali_nascita_non_indenni()
+                        
+                        tryCatch({
+                                # Crea il file ZIP con la funzione utility
+                                zip_path <- crea_zip_bdn_export(liste_malattie, tipo = "nascite")
+                                
+                                # Copia il file alla destinazione finale
+                                file.copy(zip_path, file, overwrite = TRUE)
+                                
+                                # Rimuove il file temporaneo
+                                unlink(zip_path)
+                        }, error = function(e) {
+                                showNotification(
+                                        paste("Errore nella creazione del file ZIP:", e$message),
+                                        type = "error",
+                                        duration = 10
+                                )
+                        })
+                }
+        )
 
 }
