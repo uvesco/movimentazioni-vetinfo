@@ -226,6 +226,10 @@ app_server <- function(input, output, session) {
 								h3("Animali con dati geografici non validi"),
 								p("Questa sezione mostra gli animali italiani per cui non è stato 
 								   possibile identificare correttamente i dati geografici."),
+								
+								# Pulsante BDN per esportazione controllo manuale
+								uiOutput("ui_bdn_controllo_manuale"),
+								
 								hr(),
 								
 								h4("Animali di provenienza nazionale con codice stabilimento di origine non mappabile"),
@@ -710,6 +714,147 @@ app_server <- function(input, output, session) {
                         req(pipeline$df_nascita_non_trovati())
                         df <- pipeline$df_nascita_non_trovati()
                         openxlsx::write.xlsx(df, file)
+                }
+        )
+        
+        # =====================================================================
+        # SEZIONE 7.5: BDN EXPORT PER CONTROLLO MANUALE
+        # =====================================================================
+        # Pulsante per scaricare i codici degli animali con dati non mappabili
+        
+        output$ui_bdn_controllo_manuale <- renderUI({
+                req(pipeline$df_provenienza_non_trovati)
+                req(pipeline$df_nascita_non_trovati)
+                
+                df_prov <- tryCatch(pipeline$df_provenienza_non_trovati(), error = function(e) data.frame())
+                df_nasc <- tryCatch(pipeline$df_nascita_non_trovati(), error = function(e) data.frame())
+                
+                # Verifica se ci sono animali da esportare
+                ha_animali <- (nrow(df_prov) > 0 || nrow(df_nasc) > 0)
+                
+                if (!ha_animali) {
+                        return(NULL)
+                }
+                
+                # Conta totale animali unici
+                codici_prov <- if (nrow(df_prov) > 0 && "capo_identificativo" %in% names(df_prov)) {
+                        as.character(df_prov$capo_identificativo)
+                } else {
+                        character(0)
+                }
+                
+                codici_nasc <- if (nrow(df_nasc) > 0 && "capo_identificativo" %in% names(df_nasc)) {
+                        as.character(df_nasc$capo_identificativo)
+                } else {
+                        character(0)
+                }
+                
+                codici_totali <- unique(c(codici_prov, codici_nasc))
+                codici_totali <- codici_totali[!is.na(codici_totali) & codici_totali != ""]
+                n_animali <- length(codici_totali)
+                
+                if (n_animali == 0) {
+                        return(NULL)
+                }
+                
+                # Crea il pulsante BDN
+                div(
+                        style = "margin: 20px 0; padding: 15px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px;",
+                        h4("Esportazione per BDN - Interrogazione \"Capi da file\""),
+                        p("Scarica i codici identificativi di tutti gli animali con dati geografici non mappabili ",
+                          "(sia codice stabilimento che provincia marchio auricolare)."),
+                        p(strong(paste0("Totale animali: ", n_animali))),
+                        tags$ul(
+                                tags$li("Codifica ANSI (Windows-1252) con interruzioni di linea Windows (CRLF)"),
+                                tags$li("Un codice per riga, massimo 255 per file"),
+                                tags$li("≤255 animali: download diretto file .txt"),
+                                tags$li(">255 animali: download file .zip con multipli .txt")
+                        ),
+                        downloadButton("download_bdn_controllo_manuale", "Scarica per BDN", 
+                                       icon = icon("download"),
+                                       class = "btn-warning")
+                )
+        })
+        
+        # Download handler per BDN controllo manuale
+        output$download_bdn_controllo_manuale <- downloadHandler(
+                filename = function() {
+                        req(pipeline$df_provenienza_non_trovati)
+                        req(pipeline$df_nascita_non_trovati)
+                        
+                        df_prov <- tryCatch(pipeline$df_provenienza_non_trovati(), error = function(e) data.frame())
+                        df_nasc <- tryCatch(pipeline$df_nascita_non_trovati(), error = function(e) data.frame())
+                        
+                        # Combina i codici
+                        codici_prov <- if (nrow(df_prov) > 0 && "capo_identificativo" %in% names(df_prov)) {
+                                as.character(df_prov$capo_identificativo)
+                        } else {
+                                character(0)
+                        }
+                        
+                        codici_nasc <- if (nrow(df_nasc) > 0 && "capo_identificativo" %in% names(df_nasc)) {
+                                as.character(df_nasc$capo_identificativo)
+                        } else {
+                                character(0)
+                        }
+                        
+                        codici_totali <- unique(c(codici_prov, codici_nasc))
+                        codici_totali <- codici_totali[!is.na(codici_totali) & codici_totali != ""]
+                        n_animali <- length(codici_totali)
+                        
+                        if (n_animali <= 255) {
+                                # File singolo .txt
+                                paste0("bdn_controllo_manuale_", format(Sys.Date(), "%Y%m%d"), ".txt")
+                        } else {
+                                # File ZIP con multipli .txt
+                                paste0("bdn_export_controllo_manuale_", format(Sys.Date(), "%Y%m%d"), ".zip")
+                        }
+                },
+                content = function(file) {
+                        req(pipeline$df_provenienza_non_trovati)
+                        req(pipeline$df_nascita_non_trovati)
+                        
+                        df_prov <- tryCatch(pipeline$df_provenienza_non_trovati(), error = function(e) data.frame())
+                        df_nasc <- tryCatch(pipeline$df_nascita_non_trovati(), error = function(e) data.frame())
+                        
+                        tryCatch({
+                                # Combina i due dataframe in una lista fittizia per usare le funzioni esistenti
+                                # Creiamo una struttura simile a liste_malattie
+                                lista_combined <- list()
+                                
+                                if (nrow(df_prov) > 0) {
+                                        lista_combined[["Codice_stabilimento_non_mappabile"]] <- df_prov
+                                }
+                                
+                                if (nrow(df_nasc) > 0) {
+                                        lista_combined[["Provincia_marchio_non_mappabile"]] <- df_nasc
+                                }
+                                
+                                if (length(lista_combined) == 0) {
+                                        stop("Nessun animale da esportare")
+                                }
+                                
+                                # Conta animali per determinare il tipo di esportazione
+                                n_animali <- conta_animali_da_esportare(lista_combined)
+                                
+                                if (n_animali <= 255) {
+                                        # Crea file .txt singolo per download diretto
+                                        txt_path <- crea_txt_bdn_export(lista_combined, tipo = "controllo_manuale")
+                                        file.copy(txt_path, file, overwrite = TRUE)
+                                        unlink(txt_path)
+                                } else {
+                                        # Crea file ZIP con multipli .txt
+                                        zip_path <- crea_zip_bdn_export(lista_combined, tipo = "controllo_manuale")
+                                        file.copy(zip_path, file, overwrite = TRUE)
+                                        unlink(zip_path)
+                                }
+                        }, error = function(e) {
+                                showNotification(
+                                        paste("Errore nella creazione del file:", e$message),
+                                        type = "error",
+                                        duration = 10
+                                )
+                        })
                 }
         )
         
