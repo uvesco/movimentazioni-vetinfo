@@ -226,6 +226,10 @@ app_ui <- function() {
 				style = "margin: 5px 0; font-style: italic;",
 				tags$strong("Disclaimer:"), " Questa applicazione è fornita SENZA ALCUNA GARANZIA. ",
 				"L'uso è a proprio rischio e pericolo. Si invita a verificare i dati e i risultati ottenuti."
+			),
+			tags$p(
+				style = "margin: 5px 0;",
+				tags$a(href = "https://github.com/uvesco/movimentazioni-vetinfo", target = "_blank", "Repository GitHub")
 			)
 		)
 	)
