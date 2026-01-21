@@ -157,46 +157,55 @@ app_server <- function(input, output, session) {
                 }
         })
         
-        # Osservatore per inserimento tab Provenienze e Nascite dopo caricamento
+        # Osservatore per inserimento tab "Non Indenni" (unione di Provenienze e Nascite)
         observe({
                 req(animali())
                 req(gruppo())
                 req(tabs_inserite())  # Aspetta che i tab base siano inseriti
                 
                 if (nrow(animali()) > 0 && !tabs_disease_inserite() && isTRUE(file_check())) {
-                        # Inserisce tab "Provenienze" dopo "dataset"
+                        # Inserisce tab "Non Indenni" dopo "dataset"
                         insertTab(
                                 inputId = "tabs",
                                 target = "dataset",
                                 position = "after",
                                 tab = tabPanel(
-                                        title = "Provenienze",
-                                        value = "provenienze",
+                                        title = "Non Indenni",
+                                        value = "non_indenni",
+                                        
+                                        # A) Diagnostica riepilogativa in cima
+                                        uiOutput("ui_diagnostica_non_indenni"),
+                                        
+                                        hr(),
+                                        
+                                        # B) Tabella riepilogativa per stabilimento destinazione
+                                        h3("Riepilogo per stabilimento di destinazione"),
+                                        p("Numero di animali a rischio per ogni stabilimento di destinazione, suddivisi per malattia e tipo di rischio (provenienza/nascita)."),
+                                        tableOutput("tabella_riepilogo_non_indenni"),
+                                        
+                                        # Pulsante BDN per tutti gli animali a rischio
+                                        uiOutput("ui_bdn_non_indenni_all"),
+                                        
+                                        hr(),
+                                        
+                                        # C.1) Sezione Provenienze con download buttons
                                         h3("Animali provenienti da zone non indenni"),
-                                        p("Elenco degli animali che provengono da comuni/zone non indenni per le malattie considerate."),
-                                        uiOutput("ui_provenienze")
-                                )
-                        )
-                        
-                        # Inserisce tab "Nascite" dopo "provenienze"
-                        insertTab(
-                                inputId = "tabs",
-                                target = "provenienze",
-                                position = "after",
-                                tab = tabPanel(
-                                        title = "Nascite",
-                                        value = "nascite",
+                                        p("Scarica il dataset filtrato per gli animali provenienti da comuni/zone non indenni per ciascuna malattia."),
+                                        uiOutput("ui_provenienze_download"),
+                                        
+                                        hr(),
+                                        
+                                        # C.2) Sezione Nascite con download buttons
                                         h3("Animali nati in zone non indenni"),
-                                        p("Elenco degli animali nati in province non indenni per le malattie considerate."),
-                                        uiOutput("ui_nascite")
+                                        p("Scarica il dataset filtrato per gli animali nati in province non indenni per ciascuna malattia."),
+                                        uiOutput("ui_nascite_download")
                                 )
                         )
                         
                         tabs_disease_inserite(TRUE)
                         
                 } else if ((is.null(animali()) || nrow(animali()) == 0) && tabs_disease_inserite()) {
-                        removeTab("tabs", "provenienze")
-                        removeTab("tabs", "nascite")
+                        removeTab("tabs", "non_indenni")
                         tabs_disease_inserite(FALSE)
                 }
         })
@@ -859,11 +868,241 @@ app_server <- function(input, output, session) {
         )
         
         # =====================================================================
-        # SEZIONE 8: OUTPUT PROVENIENZE
+        # SEZIONE 8: OUTPUT NON INDENNI (TAB UNIFICATO)
         # =====================================================================
-        # Tabelle dinamiche per animali da zone non indenni (per provenienza)
+        # A) Diagnostica riepilogativa: verde se nessun animale a rischio, rosso con conteggi
         
-        output$ui_provenienze <- renderUI({
+        output$ui_diagnostica_non_indenni <- renderUI({
+                prov_non_indenni <- tryCatch(pipeline$animali_provenienza_non_indenni(), error = function(e) list())
+                nasc_non_indenni <- tryCatch(pipeline$animali_nascita_non_indenni(), error = function(e) list())
+                
+                # Conta animali unici per categoria
+                conta_animali <- function(lista) {
+                        if (length(lista) == 0) return(0)
+                        ids <- unlist(lapply(lista, function(df_item) {
+                                if (!"capo_identificativo" %in% names(df_item)) return(character(0))
+                                df_item$capo_identificativo
+                        }))
+                        ids <- ids[!is.na(ids)]
+                        length(unique(ids))
+                }
+                
+                n_prov <- conta_animali(prov_non_indenni)
+                n_nasc <- conta_animali(nasc_non_indenni)
+                
+                # Se non ci sono animali a rischio
+                if (n_prov == 0 && n_nasc == 0) {
+                        return(div(
+                                class = "alert alert-success",
+                                role = "alert",
+                                icon("check-circle"),
+                                strong(" Nessun animale a rischio: "),
+                                "Non sono presenti animali provenienti o nati in zone non indenni per le malattie considerate."
+                        ))
+                }
+                
+                # Altrimenti mostra alert rosso con conteggi
+                tagList(
+                        if (n_prov > 0) {
+                                div(
+                                        class = "alert alert-danger",
+                                        role = "alert",
+                                        icon("exclamation-triangle"),
+                                        strong(paste(" Animali provenienti da zone non indenni:", n_prov)),
+                                        " - Controllare la sezione 'Provenienze' per i dettagli."
+                                )
+                        },
+                        if (n_nasc > 0) {
+                                div(
+                                        class = "alert alert-danger",
+                                        role = "alert",
+                                        icon("exclamation-triangle"),
+                                        strong(paste(" Animali nati in zone non indenni:", n_nasc)),
+                                        " - Controllare la sezione 'Nascite' per i dettagli."
+                                )
+                        }
+                )
+        })
+        
+        # B) Tabella riepilogativa per stabilimento destinazione
+        output$tabella_riepilogo_non_indenni <- renderTable({
+                req(pipeline$dati_processati())
+                req(malattie())
+                req(gruppo())
+                
+                df <- pipeline$dati_processati()
+                grp <- gruppo()
+                malattie_data <- malattie()
+                
+                prov_non_indenni <- tryCatch(pipeline$animali_provenienza_non_indenni(), error = function(e) list())
+                nasc_non_indenni <- tryCatch(pipeline$animali_nascita_non_indenni(), error = function(e) list())
+                
+                # Se non ci sono animali a rischio
+                if (length(prov_non_indenni) == 0 && length(nasc_non_indenni) == 0) {
+                        return(data.frame())
+                }
+                
+                # Ottieni metadati malattie per i nomi dei campi
+                df_meta <- malattie_data[["metadati"]]
+                malattie_gruppo <- df_meta[df_meta$specie == grp, ]
+                
+                # Prepara la lista di tutti gli animali a rischio
+                animali_rischio <- data.frame()
+                
+                # Aggiungi animali da provenienze
+                for (nome_malattia in names(prov_non_indenni)) {
+                        df_mal <- prov_non_indenni[[nome_malattia]]
+                        if (nrow(df_mal) > 0) {
+                                # Trova il nome del campo dalla metadati
+                                campo_raw <- malattie_gruppo$campo[malattie_gruppo$malattia == nome_malattia]
+                                # Rimuovi prefisso Ind_ se presente
+                                campo_clean <- sub("^Ind_", "", campo_raw)
+                                col_name <- paste0("prov_", campo_clean)
+                                
+                                temp <- df_mal[, c("capo_identificativo", "dest_stabilimento_cod"), drop = FALSE]
+                                temp$tipo <- "provenienza"
+                                temp$malattia <- nome_malattia
+                                temp$campo <- col_name
+                                animali_rischio <- rbind(animali_rischio, temp)
+                        }
+                }
+                
+                # Aggiungi animali da nascite
+                for (nome_malattia in names(nasc_non_indenni)) {
+                        df_mal <- nasc_non_indenni[[nome_malattia]]
+                        if (nrow(df_mal) > 0) {
+                                # Trova il nome del campo dalla metadati
+                                campo_raw <- malattie_gruppo$campo[malattie_gruppo$malattia == nome_malattia]
+                                # Rimuovi prefisso Ind_ se presente
+                                campo_clean <- sub("^Ind_", "", campo_raw)
+                                col_name <- paste0("nascita_", campo_clean)
+                                
+                                temp <- df_mal[, c("capo_identificativo", "dest_stabilimento_cod"), drop = FALSE]
+                                temp$tipo <- "nascita"
+                                temp$malattia <- nome_malattia
+                                temp$campo <- col_name
+                                animali_rischio <- rbind(animali_rischio, temp)
+                        }
+                }
+                
+                if (nrow(animali_rischio) == 0) {
+                        return(data.frame())
+                }
+                
+                # Crea tabella riepilogativa per stabilimento
+                # Colonne dinamiche per ogni combinazione tipo/malattia
+                campi_unici <- unique(animali_rischio$campo)
+                
+                # Raggruppa per stabilimento e conta per ogni campo
+                stab_list <- split(animali_rischio, animali_rischio$dest_stabilimento_cod)
+                
+                result <- lapply(names(stab_list), function(stab_cod) {
+                        stab_data <- stab_list[[stab_cod]]
+                        row <- data.frame(dest_stab_cod = stab_cod, stringsAsFactors = FALSE)
+                        
+                        for (campo in campi_unici) {
+                                count <- sum(stab_data$campo == campo)
+                                row[[campo]] <- count
+                        }
+                        
+                        # Calcola totale
+                        row$totale <- nrow(stab_data)
+                        row
+                })
+                
+                result_df <- do.call(rbind, result)
+                
+                # Ordina per totale decrescente
+                result_df <- result_df[order(-result_df$totale), , drop = FALSE]
+                
+                result_df
+        }, rownames = FALSE, digits = 0)
+        
+        # B) Pulsante BDN per tutti gli animali a rischio (provenienze + nascite)
+        output$ui_bdn_non_indenni_all <- renderUI({
+                prov_non_indenni <- tryCatch(pipeline$animali_provenienza_non_indenni(), error = function(e) list())
+                nasc_non_indenni <- tryCatch(pipeline$animali_nascita_non_indenni(), error = function(e) list())
+                
+                # Se non ci sono animali da esportare
+                if (length(prov_non_indenni) == 0 && length(nasc_non_indenni) == 0) {
+                        return(NULL)
+                }
+                
+                # Conta totale animali unici
+                codici <- character(0)
+                for (df_item in c(prov_non_indenni, nasc_non_indenni)) {
+                        if (!is.null(df_item) && "capo_identificativo" %in% names(df_item)) {
+                                codici <- c(codici, as.character(df_item$capo_identificativo))
+                        }
+                }
+                codici <- unique(codici[!is.na(codici) & codici != ""])
+                n_animali <- length(codici)
+                
+                if (n_animali == 0) return(NULL)
+                
+                div(
+                        style = "margin: 20px 0; padding: 15px; background-color: #f0f8ff; border: 1px solid #4682b4; border-radius: 5px;",
+                        h4("Esportazione per BDN - Interrogazione \"Capi da file\""),
+                        p("Scarica i codici identificativi di ", strong("tutti"), " gli animali a rischio (provenienti o nati in zone non indenni per qualsiasi malattia), ",
+                          "formattati per il caricamento nell'interrogazione \"Capi da file\" BDN."),
+                        p(strong(paste0("Totale animali: ", n_animali))),
+                        tags$ul(
+                                tags$li("Codifica ANSI (Windows-1252) con interruzioni di linea Windows (CRLF)"),
+                                tags$li("Un codice per riga, massimo 255 per file"),
+                                tags$li("≤255 animali: download diretto file .txt"),
+                                tags$li(">255 animali: download file .zip con multipli .txt")
+                        ),
+                        downloadButton("download_bdn_non_indenni_all", "Scarica per BDN (tutti)", 
+                                       icon = icon("download"),
+                                       class = "btn-primary")
+                )
+        })
+        
+        # Download handler per BDN tutti gli animali a rischio
+        output$download_bdn_non_indenni_all <- downloadHandler(
+                filename = function() {
+                        prov_non_indenni <- tryCatch(pipeline$animali_provenienza_non_indenni(), error = function(e) list())
+                        nasc_non_indenni <- tryCatch(pipeline$animali_nascita_non_indenni(), error = function(e) list())
+                        
+                        # Combina le liste
+                        combined_list <- c(prov_non_indenni, nasc_non_indenni)
+                        n_animali <- conta_animali_da_esportare(combined_list)
+                        
+                        if (n_animali <= 255) {
+                                paste0("bdn_non_indenni_", format(Sys.Date(), "%Y%m%d"), ".txt")
+                        } else {
+                                paste0("bdn_export_non_indenni_", format(Sys.Date(), "%Y%m%d"), ".zip")
+                        }
+                },
+                content = function(file) {
+                        prov_non_indenni <- tryCatch(pipeline$animali_provenienza_non_indenni(), error = function(e) list())
+                        nasc_non_indenni <- tryCatch(pipeline$animali_nascita_non_indenni(), error = function(e) list())
+                        
+                        tryCatch({
+                                combined_list <- c(prov_non_indenni, nasc_non_indenni)
+                                n_animali <- conta_animali_da_esportare(combined_list)
+                                
+                                if (n_animali <= 255) {
+                                        txt_path <- crea_txt_bdn_export(combined_list, tipo = "non_indenni")
+                                        file.copy(txt_path, file, overwrite = TRUE)
+                                        unlink(txt_path)
+                                } else {
+                                        zip_path <- crea_zip_bdn_export(combined_list, tipo = "non_indenni")
+                                        file.copy(zip_path, file, overwrite = TRUE)
+                                        unlink(zip_path)
+                                }
+                        }, error = function(e) {
+                                showNotification(
+                                        paste("Errore nella creazione del file:", e$message),
+                                        type = "error",
+                                        duration = 10
+                                )
+                        })
+                }
+        )
+        
+        # C.1) Sezione Provenienze - Solo download buttons
+        output$ui_provenienze_download <- renderUI({
                 req(pipeline$animali_provenienza_non_indenni())
                 liste_malattie <- pipeline$animali_provenienza_non_indenni()
                 
@@ -876,56 +1115,31 @@ app_server <- function(input, output, session) {
                         ))
                 }
                 
-                # Crea UI per ogni malattia
+                # Crea solo download buttons per ogni malattia (senza tabella)
                 ui_elements <- lapply(names(liste_malattie), function(nome_malattia) {
-                        output_id <- paste0("tabella_prov_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
                         download_id <- paste0("download_prov_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
+                        n_animali <- nrow(liste_malattie[[nome_malattia]])
                         
                         div(
-                                h4(nome_malattia),
-                                p(paste("Animali:", nrow(liste_malattie[[nome_malattia]]))),
-                                DT::DTOutput(output_id),
-                                downloadButton(download_id, paste("Scarica", nome_malattia)),
-                                hr()
+                                style = "margin: 10px 0; padding: 10px; background-color: #f8f9fa; border-radius: 5px;",
+                                div(
+                                        style = "display: flex; justify-content: space-between; align-items: center;",
+                                        span(strong(nome_malattia), " - ", n_animali, " animali"),
+                                        downloadButton(download_id, "Scarica Excel", class = "btn-sm btn-outline-primary")
+                                )
                         )
                 })
                 
-                # Aggiunge il pulsante per l'esportazione BDN
-                # Visibile solo se ci sono animali da esportare
-                bdn_button <- div(
-                        style = "margin: 20px 0; padding: 15px; background-color: #f0f8ff; border: 1px solid #4682b4; border-radius: 5px;",
-                        h4("Esportazione per BDN - Interrogazione \"Capi da file\""),
-                        p("Scarica i codici identificativi degli animali provenienti da zone non indenni, ",
-                          "formattati per il caricamento nell'interrogazione \"Capi da file\" BDN."),
-                        tags$ul(
-                                tags$li("Codifica ANSI (Windows-1252) con interruzioni di linea Windows (CRLF)"),
-                                tags$li("Un codice per riga, massimo 255 per file"),
-                                tags$li("≤255 animali: download diretto file .txt"),
-                                tags$li(">255 animali: download file .zip con multipli .txt")
-                        ),
-                        downloadButton("download_bdn_prov", "Scarica per BDN", 
-                                       icon = icon("download"),
-                                       class = "btn-primary")
-                )
-                
-                # Combina il pulsante BDN con gli elementi delle malattie
-                do.call(tagList, c(list(bdn_button, hr()), ui_elements))
+                do.call(tagList, ui_elements)
         })
         
-        # Crea dinamicamente i render e download per ogni malattia (provenienze)
+        # Crea dinamicamente i download per ogni malattia (provenienze)
         observe({
                 req(pipeline$animali_provenienza_non_indenni())
                 liste_malattie <- pipeline$animali_provenienza_non_indenni()
                 
                 lapply(names(liste_malattie), function(nome_malattia) {
-                        output_id <- paste0("tabella_prov_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
                         download_id <- paste0("download_prov_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
-                        
-                        # Render tabella
-                        output[[output_id]] <- DT::renderDT({
-                                df <- liste_malattie[[nome_malattia]]
-                                DT::datatable(df, options = list(pageLength = 10, scrollX = TRUE), rownames = FALSE)
-                        })
                         
                         # Download handler
                         output[[download_id]] <- downloadHandler(
@@ -941,58 +1155,8 @@ app_server <- function(input, output, session) {
                 })
         })
         
-        # Download handler per esportazione BDN provenienze
-        output$download_bdn_prov <- downloadHandler(
-                filename = function() {
-                        req(pipeline$animali_provenienza_non_indenni())
-                        liste_malattie <- pipeline$animali_provenienza_non_indenni()
-                        
-                        # Conta animali per determinare il tipo di file
-                        n_animali <- conta_animali_da_esportare(liste_malattie)
-                        
-                        if (n_animali <= 255) {
-                                # File singolo .txt
-                                paste0("bdn_provenienze_", format(Sys.Date(), "%Y%m%d"), ".txt")
-                        } else {
-                                # File ZIP con multipli .txt
-                                paste0("bdn_export_provenienze_", format(Sys.Date(), "%Y%m%d"), ".zip")
-                        }
-                },
-                content = function(file) {
-                        req(pipeline$animali_provenienza_non_indenni())
-                        liste_malattie <- pipeline$animali_provenienza_non_indenni()
-                        
-                        tryCatch({
-                                # Conta animali per determinare il tipo di esportazione
-                                n_animali <- conta_animali_da_esportare(liste_malattie)
-                                
-                                if (n_animali <= 255) {
-                                        # Crea file .txt singolo per download diretto
-                                        txt_path <- crea_txt_bdn_export(liste_malattie, tipo = "provenienze")
-                                        file.copy(txt_path, file, overwrite = TRUE)
-                                        unlink(txt_path)
-                                } else {
-                                        # Crea file ZIP con multipli .txt
-                                        zip_path <- crea_zip_bdn_export(liste_malattie, tipo = "provenienze")
-                                        file.copy(zip_path, file, overwrite = TRUE)
-                                        unlink(zip_path)
-                                }
-                        }, error = function(e) {
-                                showNotification(
-                                        paste("Errore nella creazione del file:", e$message),
-                                        type = "error",
-                                        duration = 10
-                                )
-                        })
-                }
-        )
-        
-        # =====================================================================
-        # SEZIONE 9: OUTPUT NASCITE
-        # =====================================================================
-        # Tabelle dinamiche per animali nati in zone non indenni
-        
-        output$ui_nascite <- renderUI({
+        # C.2) Sezione Nascite - Solo download buttons
+        output$ui_nascite_download <- renderUI({
                 req(pipeline$animali_nascita_non_indenni())
                 liste_malattie <- pipeline$animali_nascita_non_indenni()
                 
@@ -1005,56 +1169,31 @@ app_server <- function(input, output, session) {
                         ))
                 }
                 
-                # Crea UI per ogni malattia
+                # Crea solo download buttons per ogni malattia (senza tabella)
                 ui_elements <- lapply(names(liste_malattie), function(nome_malattia) {
-                        output_id <- paste0("tabella_nasc_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
                         download_id <- paste0("download_nasc_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
+                        n_animali <- nrow(liste_malattie[[nome_malattia]])
                         
                         div(
-                                h4(nome_malattia),
-                                p(paste("Animali:", nrow(liste_malattie[[nome_malattia]]))),
-                                DT::DTOutput(output_id),
-                                downloadButton(download_id, paste("Scarica", nome_malattia)),
-                                hr()
+                                style = "margin: 10px 0; padding: 10px; background-color: #f8f9fa; border-radius: 5px;",
+                                div(
+                                        style = "display: flex; justify-content: space-between; align-items: center;",
+                                        span(strong(nome_malattia), " - ", n_animali, " animali"),
+                                        downloadButton(download_id, "Scarica Excel", class = "btn-sm btn-outline-primary")
+                                )
                         )
                 })
                 
-                # Aggiunge il pulsante per l'esportazione BDN
-                # Visibile solo se ci sono animali da esportare
-                bdn_button <- div(
-                        style = "margin: 20px 0; padding: 15px; background-color: #f0f8ff; border: 1px solid #4682b4; border-radius: 5px;",
-                        h4("Esportazione per BDN - Interrogazione \"Capi da file\""),
-                        p("Scarica i codici identificativi degli animali nati in zone non indenni, ",
-                          "formattati per il caricamento nell'interrogazione \"Capi da file\" BDN."),
-                        tags$ul(
-                                tags$li("Codifica ANSI (Windows-1252) con interruzioni di linea Windows (CRLF)"),
-                                tags$li("Un codice per riga, massimo 255 per file"),
-                                tags$li("≤255 animali: download diretto file .txt"),
-                                tags$li(">255 animali: download file .zip con multipli .txt")
-                        ),
-                        downloadButton("download_bdn_nasc", "Scarica per BDN", 
-                                       icon = icon("download"),
-                                       class = "btn-primary")
-                )
-                
-                # Combina il pulsante BDN con gli elementi delle malattie
-                do.call(tagList, c(list(bdn_button, hr()), ui_elements))
+                do.call(tagList, ui_elements)
         })
         
-        # Crea dinamicamente i render e download per ogni malattia (nascite)
+        # Crea dinamicamente i download per ogni malattia (nascite)
         observe({
                 req(pipeline$animali_nascita_non_indenni())
                 liste_malattie <- pipeline$animali_nascita_non_indenni()
                 
                 lapply(names(liste_malattie), function(nome_malattia) {
-                        output_id <- paste0("tabella_nasc_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
                         download_id <- paste0("download_nasc_", gsub("[^a-zA-Z0-9]", "_", nome_malattia))
-                        
-                        # Render tabella
-                        output[[output_id]] <- DT::renderDT({
-                                df <- liste_malattie[[nome_malattia]]
-                                DT::datatable(df, options = list(pageLength = 10, scrollX = TRUE), rownames = FALSE)
-                        })
                         
                         # Download handler
                         output[[download_id]] <- downloadHandler(
@@ -1069,51 +1208,5 @@ app_server <- function(input, output, session) {
                         )
                 })
         })
-        
-        # Download handler per esportazione BDN nascite
-        output$download_bdn_nasc <- downloadHandler(
-                filename = function() {
-                        req(pipeline$animali_nascita_non_indenni())
-                        liste_malattie <- pipeline$animali_nascita_non_indenni()
-                        
-                        # Conta animali per determinare il tipo di file
-                        n_animali <- conta_animali_da_esportare(liste_malattie)
-                        
-                        if (n_animali <= 255) {
-                                # File singolo .txt
-                                paste0("bdn_nascite_", format(Sys.Date(), "%Y%m%d"), ".txt")
-                        } else {
-                                # File ZIP con multipli .txt
-                                paste0("bdn_export_nascite_", format(Sys.Date(), "%Y%m%d"), ".zip")
-                        }
-                },
-                content = function(file) {
-                        req(pipeline$animali_nascita_non_indenni())
-                        liste_malattie <- pipeline$animali_nascita_non_indenni()
-                        
-                        tryCatch({
-                                # Conta animali per determinare il tipo di esportazione
-                                n_animali <- conta_animali_da_esportare(liste_malattie)
-                                
-                                if (n_animali <= 255) {
-                                        # Crea file .txt singolo per download diretto
-                                        txt_path <- crea_txt_bdn_export(liste_malattie, tipo = "nascite")
-                                        file.copy(txt_path, file, overwrite = TRUE)
-                                        unlink(txt_path)
-                                } else {
-                                        # Crea file ZIP con multipli .txt
-                                        zip_path <- crea_zip_bdn_export(liste_malattie, tipo = "nascite")
-                                        file.copy(zip_path, file, overwrite = TRUE)
-                                        unlink(zip_path)
-                                }
-                        }, error = function(e) {
-                                showNotification(
-                                        paste("Errore nella creazione del file:", e$message),
-                                        type = "error",
-                                        duration = 10
-                                )
-                        })
-                }
-        )
 
 }
