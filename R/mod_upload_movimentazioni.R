@@ -215,6 +215,16 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         # Ottieni lista di file (singolo o multiplo)
                         file_paths <- input$file$datapath
                         file_names <- input$file$name
+                        
+                        # Verifica che paths e names abbiano la stessa lunghezza
+                        if (length(file_paths) != length(file_names)) {
+                                notify_upload_issue("Errore interno: mancata corrispondenza tra percorsi e nomi dei file.")
+                                dati(NULL)
+                                gruppo_colonne(NULL)
+                                nome_file(NULL)
+                                return()
+                        }
+                        
                         n_files <- length(file_paths)
                         
                         withProgress(message = "Lettura file…", value = 0.1, {   # mostra barra di avanzamento
