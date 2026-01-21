@@ -749,9 +749,9 @@ app_server <- function(input, output, session) {
                 # Visibile solo se ci sono animali da esportare
                 bdn_button <- div(
                         style = "margin: 20px 0; padding: 15px; background-color: #f0f8ff; border: 1px solid #4682b4; border-radius: 5px;",
-                        h4("Esportazione per BDN - Interrogazione raffinata"),
+                        h4("Esportazione per BDN - Interrogazione \"Capi da file\""),
                         p("Scarica un file ZIP contenente i codici identificativi degli animali provenienti da zone non indenni, ",
-                          "formattati per il caricamento nell'interrogazione raffinata BDN (massimo 255 codici per file, codifica ANSI)."),
+                          "formattati per il caricamento nell'interrogazione \"Capi da file\" BDN (massimo 255 codici per file, codifica ANSI)."),
                         downloadButton("download_bdn_prov", "Scarica ZIP per BDN", 
                                        icon = icon("file-zipper"),
                                        class = "btn-primary")
@@ -854,9 +854,9 @@ app_server <- function(input, output, session) {
                 # Visibile solo se ci sono animali da esportare
                 bdn_button <- div(
                         style = "margin: 20px 0; padding: 15px; background-color: #f0f8ff; border: 1px solid #4682b4; border-radius: 5px;",
-                        h4("Esportazione per BDN - Interrogazione raffinata"),
+                        h4("Esportazione per BDN - Interrogazione \"Capi da file\""),
                         p("Scarica un file ZIP contenente i codici identificativi degli animali nati in zone non indenni, ",
-                          "formattati per il caricamento nell'interrogazione raffinata BDN (massimo 255 codici per file, codifica ANSI)."),
+                          "formattati per il caricamento nell'interrogazione \"Capi da file\" BDN (massimo 255 codici per file, codifica ANSI)."),
                         downloadButton("download_bdn_nasc", "Scarica ZIP per BDN", 
                                        icon = icon("file-zipper"),
                                        class = "btn-primary")
