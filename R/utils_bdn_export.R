@@ -84,11 +84,18 @@ crea_zip_bdn_export <- function(liste_malattie, tipo = "provenienze", max_righe_
 		file_path <- file.path(temp_dir, file_name)
 		file_paths[i] <- file_path
 		
-		# Scrive il file con codifica Windows-1252 (ANSI)
-		# Apre la connessione con encoding specificato
-		con <- file(file_path, open = "w", encoding = "Windows-1252")
+		# Scrive il file con codifica Windows-1252 (ANSI) e CRLF line endings
+		# per compatibilità Windows e Linux
+		con <- file(file_path, open = "wb")
 		tryCatch({
-			writeLines(chunk, con = con)
+			# Scrive manualmente con CRLF (\r\n) per Windows compatibility
+			for (j in seq_along(chunk)) {
+				# Converte la stringa a Windows-1252
+				line_bytes <- iconv(chunk[j], from = "UTF-8", to = "Windows-1252", toRaw = TRUE)[[1]]
+				writeBin(line_bytes, con)
+				# Aggiunge CRLF (Windows line ending)
+				writeBin(as.raw(c(0x0D, 0x0A)), con)
+			}
 		}, finally = {
 			close(con)
 		})
@@ -119,6 +126,70 @@ crea_zip_bdn_export <- function(liste_malattie, tipo = "provenienze", max_righe_
 	return(zip_path)
 }
 
+#' Crea file TXT singolo con codici animali per BDN (download diretto)
+#'
+#' Questa funzione crea un singolo file .txt con i codici identificativi
+#' degli animali. Da usare quando ci sono ≤255 animali per permettere
+#' il download diretto senza ZIP.
+#'
+#' @param liste_malattie Lista di dataframe, uno per malattia
+#' @param tipo Tipo di esportazione: "provenienze" o "nascite"
+#' @param max_righe Numero massimo di righe (default: 255)
+#'
+#' @return Path temporaneo del file TXT creato
+crea_txt_bdn_export <- function(liste_malattie, tipo = "provenienze", max_righe = 255) {
+	
+	# Verifica input
+	if (length(liste_malattie) == 0) {
+		stop("Nessuna malattia con animali da esportare")
+	}
+	
+	# Raccoglie tutti i codici identificativi
+	codici_animali <- character(0)
+	for (nome_malattia in names(liste_malattie)) {
+		df <- liste_malattie[[nome_malattia]]
+		if ("capo_identificativo" %in% names(df)) {
+			codici <- as.character(df$capo_identificativo)
+			codici <- codici[!is.na(codici) & codici != ""]
+			codici_animali <- c(codici_animali, codici)
+		}
+	}
+	
+	# Rimuove duplicati e ordina
+	codici_animali <- unique(codici_animali)
+	codici_animali <- sort(codici_animali)
+	
+	# Verifica che ci siano codici e che non superino il limite
+	if (length(codici_animali) == 0) {
+		stop("Nessun codice animale valido da esportare")
+	}
+	
+	if (length(codici_animali) > max_righe) {
+		stop(paste("Troppi codici per un file singolo:", length(codici_animali), "> max", max_righe))
+	}
+	
+	# Crea il file TXT
+	file_name <- sprintf("bdn_%s_%s.txt", tipo, format(Sys.Date(), "%Y%m%d"))
+	file_path <- file.path(tempdir(), file_name)
+	
+	# Scrive il file con codifica Windows-1252 (ANSI) e CRLF line endings
+	con <- file(file_path, open = "wb")
+	tryCatch({
+		# Scrive manualmente con CRLF (\r\n) per Windows compatibility
+		for (i in seq_along(codici_animali)) {
+			# Converte la stringa a Windows-1252
+			line_bytes <- iconv(codici_animali[i], from = "UTF-8", to = "Windows-1252", toRaw = TRUE)[[1]]
+			writeBin(line_bytes, con)
+			# Aggiunge CRLF (Windows line ending)
+			writeBin(as.raw(c(0x0D, 0x0A)), con)
+		}
+	}, finally = {
+		close(con)
+	})
+	
+	return(file_path)
+}
+
 #' Verifica se ci sono animali da esportare per BDN
 #'
 #' @param liste_malattie Lista di dataframe, uno per malattia
@@ -138,4 +209,29 @@ ha_animali_da_esportare <- function(liste_malattie) {
 	}
 	
 	return(FALSE)
+}
+
+#' Conta il numero totale di animali unici da esportare
+#'
+#' @param liste_malattie Lista di dataframe, uno per malattia
+#'
+#' @return Numero di animali unici (dopo deduplicazione)
+conta_animali_da_esportare <- function(liste_malattie) {
+	if (is.null(liste_malattie) || length(liste_malattie) == 0) {
+		return(0)
+	}
+	
+	# Raccoglie tutti i codici identificativi
+	codici_animali <- character(0)
+	for (nome_malattia in names(liste_malattie)) {
+		df <- liste_malattie[[nome_malattia]]
+		if (!is.null(df) && "capo_identificativo" %in% names(df)) {
+			codici <- as.character(df$capo_identificativo)
+			codici <- codici[!is.na(codici) & codici != ""]
+			codici_animali <- c(codici_animali, codici)
+		}
+	}
+	
+	# Conta dopo deduplicazione
+	return(length(unique(codici_animali)))
 }
