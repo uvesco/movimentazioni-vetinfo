@@ -2,7 +2,7 @@
 # UTILITY FUNCTIONS FOR BDN EXPORT
 # =============================================================================
 # Funzioni per l'esportazione di codici animali per l'interrogazione
-# raffinata BDN. I file .txt devono rispettare i seguenti requisiti:
+# "Capi da file" BDN. I file .txt devono rispettare i seguenti requisiti:
 # - Un codice animale per riga
 # - Codifica ANSI (Windows-1252)
 # - Massimo 255 righe per file
