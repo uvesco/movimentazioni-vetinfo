@@ -750,10 +750,16 @@ app_server <- function(input, output, session) {
                 bdn_button <- div(
                         style = "margin: 20px 0; padding: 15px; background-color: #f0f8ff; border: 1px solid #4682b4; border-radius: 5px;",
                         h4("Esportazione per BDN - Interrogazione \"Capi da file\""),
-                        p("Scarica un file ZIP contenente i codici identificativi degli animali provenienti da zone non indenni, ",
-                          "formattati per il caricamento nell'interrogazione \"Capi da file\" BDN (massimo 255 codici per file, codifica ANSI)."),
-                        downloadButton("download_bdn_prov", "Scarica ZIP per BDN", 
-                                       icon = icon("file-zipper"),
+                        p("Scarica i codici identificativi degli animali provenienti da zone non indenni, ",
+                          "formattati per il caricamento nell'interrogazione \"Capi da file\" BDN."),
+                        tags$ul(
+                                tags$li("Codifica ANSI (Windows-1252) con interruzioni di linea Windows (CRLF)"),
+                                tags$li("Un codice per riga, massimo 255 per file"),
+                                tags$li("≤255 animali: download diretto file .txt"),
+                                tags$li(">255 animali: download file .zip con multipli .txt")
+                        ),
+                        downloadButton("download_bdn_prov", "Scarica per BDN", 
+                                       icon = icon("download"),
                                        class = "btn-primary")
                 )
                 
@@ -793,24 +799,42 @@ app_server <- function(input, output, session) {
         # Download handler per esportazione BDN provenienze
         output$download_bdn_prov <- downloadHandler(
                 filename = function() {
-                        paste0("bdn_export_provenienze_", format(Sys.Date(), "%Y%m%d"), ".zip")
+                        req(pipeline$animali_provenienza_non_indenni())
+                        liste_malattie <- pipeline$animali_provenienza_non_indenni()
+                        
+                        # Conta animali per determinare il tipo di file
+                        n_animali <- conta_animali_da_esportare(liste_malattie)
+                        
+                        if (n_animali <= 255) {
+                                # File singolo .txt
+                                paste0("bdn_provenienze_", format(Sys.Date(), "%Y%m%d"), ".txt")
+                        } else {
+                                # File ZIP con multipli .txt
+                                paste0("bdn_export_provenienze_", format(Sys.Date(), "%Y%m%d"), ".zip")
+                        }
                 },
                 content = function(file) {
                         req(pipeline$animali_provenienza_non_indenni())
                         liste_malattie <- pipeline$animali_provenienza_non_indenni()
                         
                         tryCatch({
-                                # Crea il file ZIP con la funzione utility
-                                zip_path <- crea_zip_bdn_export(liste_malattie, tipo = "provenienze")
+                                # Conta animali per determinare il tipo di esportazione
+                                n_animali <- conta_animali_da_esportare(liste_malattie)
                                 
-                                # Copia il file alla destinazione finale
-                                file.copy(zip_path, file, overwrite = TRUE)
-                                
-                                # Rimuove il file temporaneo
-                                unlink(zip_path)
+                                if (n_animali <= 255) {
+                                        # Crea file .txt singolo per download diretto
+                                        txt_path <- crea_txt_bdn_export(liste_malattie, tipo = "provenienze")
+                                        file.copy(txt_path, file, overwrite = TRUE)
+                                        unlink(txt_path)
+                                } else {
+                                        # Crea file ZIP con multipli .txt
+                                        zip_path <- crea_zip_bdn_export(liste_malattie, tipo = "provenienze")
+                                        file.copy(zip_path, file, overwrite = TRUE)
+                                        unlink(zip_path)
+                                }
                         }, error = function(e) {
                                 showNotification(
-                                        paste("Errore nella creazione del file ZIP:", e$message),
+                                        paste("Errore nella creazione del file:", e$message),
                                         type = "error",
                                         duration = 10
                                 )
@@ -855,10 +879,16 @@ app_server <- function(input, output, session) {
                 bdn_button <- div(
                         style = "margin: 20px 0; padding: 15px; background-color: #f0f8ff; border: 1px solid #4682b4; border-radius: 5px;",
                         h4("Esportazione per BDN - Interrogazione \"Capi da file\""),
-                        p("Scarica un file ZIP contenente i codici identificativi degli animali nati in zone non indenni, ",
-                          "formattati per il caricamento nell'interrogazione \"Capi da file\" BDN (massimo 255 codici per file, codifica ANSI)."),
-                        downloadButton("download_bdn_nasc", "Scarica ZIP per BDN", 
-                                       icon = icon("file-zipper"),
+                        p("Scarica i codici identificativi degli animali nati in zone non indenni, ",
+                          "formattati per il caricamento nell'interrogazione \"Capi da file\" BDN."),
+                        tags$ul(
+                                tags$li("Codifica ANSI (Windows-1252) con interruzioni di linea Windows (CRLF)"),
+                                tags$li("Un codice per riga, massimo 255 per file"),
+                                tags$li("≤255 animali: download diretto file .txt"),
+                                tags$li(">255 animali: download file .zip con multipli .txt")
+                        ),
+                        downloadButton("download_bdn_nasc", "Scarica per BDN", 
+                                       icon = icon("download"),
                                        class = "btn-primary")
                 )
                 
@@ -898,24 +928,42 @@ app_server <- function(input, output, session) {
         # Download handler per esportazione BDN nascite
         output$download_bdn_nasc <- downloadHandler(
                 filename = function() {
-                        paste0("bdn_export_nascite_", format(Sys.Date(), "%Y%m%d"), ".zip")
+                        req(pipeline$animali_nascita_non_indenni())
+                        liste_malattie <- pipeline$animali_nascita_non_indenni()
+                        
+                        # Conta animali per determinare il tipo di file
+                        n_animali <- conta_animali_da_esportare(liste_malattie)
+                        
+                        if (n_animali <= 255) {
+                                # File singolo .txt
+                                paste0("bdn_nascite_", format(Sys.Date(), "%Y%m%d"), ".txt")
+                        } else {
+                                # File ZIP con multipli .txt
+                                paste0("bdn_export_nascite_", format(Sys.Date(), "%Y%m%d"), ".zip")
+                        }
                 },
                 content = function(file) {
                         req(pipeline$animali_nascita_non_indenni())
                         liste_malattie <- pipeline$animali_nascita_non_indenni()
                         
                         tryCatch({
-                                # Crea il file ZIP con la funzione utility
-                                zip_path <- crea_zip_bdn_export(liste_malattie, tipo = "nascite")
+                                # Conta animali per determinare il tipo di esportazione
+                                n_animali <- conta_animali_da_esportare(liste_malattie)
                                 
-                                # Copia il file alla destinazione finale
-                                file.copy(zip_path, file, overwrite = TRUE)
-                                
-                                # Rimuove il file temporaneo
-                                unlink(zip_path)
+                                if (n_animali <= 255) {
+                                        # Crea file .txt singolo per download diretto
+                                        txt_path <- crea_txt_bdn_export(liste_malattie, tipo = "nascite")
+                                        file.copy(txt_path, file, overwrite = TRUE)
+                                        unlink(txt_path)
+                                } else {
+                                        # Crea file ZIP con multipli .txt
+                                        zip_path <- crea_zip_bdn_export(liste_malattie, tipo = "nascite")
+                                        file.copy(zip_path, file, overwrite = TRUE)
+                                        unlink(zip_path)
+                                }
                         }, error = function(e) {
                                 showNotification(
-                                        paste("Errore nella creazione del file ZIP:", e$message),
+                                        paste("Errore nella creazione del file:", e$message),
                                         type = "error",
                                         duration = 10
                                 )
