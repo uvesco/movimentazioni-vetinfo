@@ -636,12 +636,17 @@ app_server <- function(input, output, session) {
                 df_nasc <- tryCatch(pipeline$df_nascita_non_trovati(), error = function(e) data.frame())
                 prov_non_indenni <- tryCatch(pipeline$animali_provenienza_non_indenni(), error = function(e) list())
                 nasc_non_indenni <- tryCatch(pipeline$animali_nascita_non_indenni(), error = function(e) list())
-                
+
                 manuale_nascita <- nrow(df_nasc)
                 manuale_provenienza <- nrow(df_prov)
                 nati_non_indenni <- conta_animali(nasc_non_indenni)
                 provenienti_non_indenni <- conta_animali(prov_non_indenni)
-                
+
+                grp <- gruppo()
+                df_meta <- malattie()[["metadati"]]
+                sigle <- sub("^IND_", "", toupper(df_meta$campo[df_meta$specie == grp]))
+                sigle_malattie <- paste0("(", paste(sigle, collapse = ", "), ")")
+
                 riga_colore <- function(testo, valore) {
                         colore <- ifelse(valore == 0, "green", "red")
                         div(style = paste0("color: ", colore, ";"), paste(testo, valore))
@@ -653,8 +658,8 @@ app_server <- function(input, output, session) {
 
                 div(
                         h4("Riepilogo controlli"),
-                        riga_colore("Animali nati in province non indenni (per qualsiasi malattia):", nati_non_indenni),
-                        riga_colore("Animali provenienti da province non indenni (per qualsiasi malattia):", provenienti_non_indenni),
+                        riga_colore(paste("Animali nati in province non indenni", sigle_malattie, ":"), nati_non_indenni),
+                        riga_colore(paste("Animali provenienti da province non indenni", sigle_malattie, ":"), provenienti_non_indenni),
                         riga_manuale("Animali da controllare manualmente per nascita:", manuale_nascita),
                         riga_manuale("Animali da controllare manualmente per provenienza:", manuale_provenienza)
                 )
