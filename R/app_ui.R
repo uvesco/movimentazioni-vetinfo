@@ -19,6 +19,22 @@ app_ui <- function() {
 		tabsetPanel(
 			id = "tabs",
 			
+				# =====================================================================
+			# TAB DOWNLOAD BDN: Download guidato da Vetinfo
+			# =====================================================================
+			# Sempre visibile. Apre i form di Vetinfo pre-compilati via JavaScript.
+			tabPanel(
+				title = "Download BDN",
+				value = "download_bdn",
+				fluidRow(
+					column(8, offset = 2,
+						div(style = "margin-top: 20px;",
+							mod_download_vetinfo_ui("download_vetinfo")
+						)
+					)
+				)
+			),
+
 			# =====================================================================
 			# TAB INPUT: Caricamento file movimentazioni
 			# =====================================================================

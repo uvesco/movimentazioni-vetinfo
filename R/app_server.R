@@ -23,6 +23,9 @@ app_server <- function(input, output, session) {
         # Questa sezione gestisce il caricamento e la standardizzazione dei 
         # file movimentazioni e l'importazione dei dati sulle malattie
         
+        # Modulo download Vetinfo (logica interamente nel browser via JS)
+        mod_download_vetinfo_server("download_vetinfo")
+
         # Modulo upload: gestisce il caricamento file e la standardizzazione
         upload <- mod_upload_movimentazioni_server("upload_mov")
         animali <- upload$animali                    # Dataframe animali standardizzato

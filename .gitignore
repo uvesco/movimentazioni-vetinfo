@@ -44,3 +44,4 @@ tests/*.pdf
 tests/*.xlsx
 # rimane
 movimentazioni-vetinfo.Rproj
+.positai
