@@ -19,22 +19,6 @@ app_ui <- function() {
 		tabsetPanel(
 			id = "tabs",
 			
-				# =====================================================================
-			# TAB DOWNLOAD BDN: Download guidato da Vetinfo
-			# =====================================================================
-			# Sempre visibile. Apre i form di Vetinfo pre-compilati via JavaScript.
-			tabPanel(
-				title = "Download BDN",
-				value = "download_bdn",
-				fluidRow(
-					column(8, offset = 2,
-						div(style = "margin-top: 20px;",
-							mod_download_vetinfo_ui("download_vetinfo")
-						)
-					)
-				)
-			),
-
 			# =====================================================================
 			# TAB INPUT: Caricamento file movimentazioni
 			# =====================================================================
@@ -55,10 +39,10 @@ app_ui <- function() {
 					),
 					# Pannello principale con informazioni sul file caricato
 					mainPanel(
-						uiOutput("n_animali"),                 # Conteggio animali
+						uiOutput("n_animali"),                 # Conteggio animali + breakdown
+						uiOutput("riepilogo_controlli"),       # Riepilogo controlli
 						uiOutput("titolo_malattie"),           # Titolo sezione malattie
-						tableOutput("malattie_importate"),     # Tabella malattie rilevanti
-						uiOutput("riepilogo_controlli")
+						tableOutput("malattie_importate")      # Tabella malattie rilevanti
 					)
 				)
 			),
@@ -136,8 +120,65 @@ app_ui <- function() {
 									" per scaricare il file"
 								)
 							),
-							
-							   
+
+							h4("2.2 Download con bookmarklet (opzione alternativa)"),
+							p(
+								"In alternativa alla navigazione manuale è possibile utilizzare dei bookmarklet che aprono ",
+								"direttamente il form di estrazione Vetinfo pre-compilato ",
+								"(P_DOVE, tipo report, formato, data AL = oggi). ",
+								"È sufficiente impostare solo la ", tags$strong("data DAL"), " e cliccare Invio."
+							),
+							p(tags$em(
+								"Trascinare i pulsanti nella barra dei preferiti del browser. ",
+								"Il bookmarklet funziona da qualsiasi pagina di Vetinfo ",
+								"(se cliccato da un'altra pagina apre Vetinfo in una nuova scheda, ",
+								"da ricliccare una volta arrivati)."
+							)),
+							div(
+								class = "d-flex gap-2 mb-2",
+								tags$a(
+									href  = .vetinfo_bookmarklet(VETINFO_BOVINI),
+									title = "Trascina nella barra dei preferiti",
+									class = "btn btn-primary btn-sm",
+									icon("cow"), " Bovini e Bufalini"
+								),
+								tags$a(
+									href  = .vetinfo_bookmarklet(VETINFO_OVICAPRINI),
+									title = "Trascina nella barra dei preferiti",
+									class = "btn btn-success btn-sm",
+									icon("sheep"), " Ovicaprini"
+								)
+							),
+							tags$details(
+								tags$summary(tags$small(tags$em(
+									"Copia-incolla manuale (se il drag-and-drop è bloccato dal browser)"
+								))),
+								div(
+									class = "mt-1",
+									tags$p(tags$small(tags$strong("Bovini:"))),
+									tags$textarea(
+										class = "form-control font-monospace",
+										style = "font-size:0.65em; height:80px;",
+										readonly = NA,
+										.vetinfo_bookmarklet(VETINFO_BOVINI)
+									),
+									tags$p(class = "mt-2", tags$small(tags$strong("Ovicaprini:"))),
+									tags$textarea(
+										class = "form-control font-monospace",
+										style = "font-size:0.65em; height:80px;",
+										readonly = NA,
+										.vetinfo_bookmarklet(VETINFO_OVICAPRINI)
+									),
+									tags$p(
+										class = "mt-1",
+										tags$small(
+											"Aggiungere manualmente: Gestione segnalibri → Nuovo segnalibro → ",
+											"incollare il codice nel campo URL."
+										)
+									)
+								)
+							),
+
 							h3(id = "help-caricamento", "3. Caricamento File"),
 							h4("3.1 Formati supportati"),
 							tags$ul(
@@ -216,7 +257,13 @@ app_ui <- function() {
 							hr(),
 							h3(id = "help-crediti", "9. Crediti"),
 							p("Umberto Vesco (ASLTO3). Codice disponibile con licenza GNU GPL 3.0."),
-							tags$a(href = "https://github.com/uvesco/movimentazioni-vetinfo", target = "_blank", "Repository GitHub")
+							tags$a(href = "https://github.com/uvesco/movimentazioni-vetinfo", target = "_blank", "Repository GitHub"),
+							hr(),
+							h4("Citazione suggerita"),
+							tags$blockquote(
+								style = "background-color: #f8f9fa; border-left: 4px solid #6c757d; padding: 12px 16px; margin: 10px 0; font-family: monospace; font-size: 0.95em; user-select: all; cursor: text;",
+								"Dati elaborati con l'applicazione movimentazioni-vetinfo (https://github.com/uvesco/movimentazioni-vetinfo)."
+							)
 						)
 					)
 				)

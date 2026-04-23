@@ -23,9 +23,6 @@ app_server <- function(input, output, session) {
         # Questa sezione gestisce il caricamento e la standardizzazione dei 
         # file movimentazioni e l'importazione dei dati sulle malattie
         
-        # Modulo download Vetinfo (logica interamente nel browser via JS)
-        mod_download_vetinfo_server("download_vetinfo")
-
         # Modulo upload: gestisce il caricamento file e la standardizzazione
         upload <- mod_upload_movimentazioni_server("upload_mov")
         animali <- upload$animali                    # Dataframe animali standardizzato
@@ -549,15 +546,32 @@ app_server <- function(input, output, session) {
                 data_fine <- max(as.Date(df$ingresso_data, format = "%d/%m/%Y"), na.rm = TRUE)
                 data_inizio_label <- ifelse(is.finite(data_inizio), format(data_inizio, "%d/%m/%Y"), "N/D")
                 data_fine_label <- ifelse(is.finite(data_fine), format(data_fine, "%d/%m/%Y"), "N/D")
-                
+
+                # Breakdown nazionale/estero (disponibile dopo elaborazione pipeline)
+                df_proc <- tryCatch(pipeline$dati_processati(), error = function(e) NULL)
+                prov_ui <- if (!is.null(df_proc) && nrow(df_proc) > 0 &&
+                               "orig_italia" %in% names(df_proc)) {
+                        lot_id  <- crea_lotto_id(df_proc)
+                        is_it   <- df_proc$orig_italia == TRUE
+                        is_est  <- df_proc$orig_italia == FALSE
+                        n_it    <- sum(is_it,  na.rm = TRUE)
+                        n_est   <- sum(is_est, na.rm = TRUE)
+                        lot_it  <- length(unique(lot_id[is_it  & !is.na(is_it)]))
+                        lot_est <- length(unique(lot_id[is_est & !is.na(is_est)]))
+                        tagList(
+                                "Provenienza nazionale: ", n_it,  " capi (", lot_it,  " lotti)", br(),
+                                "Provenienza estera: ",    n_est, " capi (", lot_est, " lotti)", br()
+                        )
+                } else NULL
+
                 div(
-                        bs_icon("info-circle-fill"), em("Informazioni"), br(),
+                        h3(bs_icon("info-circle-fill"), " ", stringr::str_to_title(grp)),
                         h4("Periodo"),
-                        "Data inizio: ", data_inizio_label, br(),
-                        "Data fine: ", data_fine_label, br(),
-                        h4("Animali movimentati"),
-                        "Gruppo specie: ", grp, br(),
-                        "Animali movimentati: ", nrow(df)
+                        "Data prima movimentazione: ", data_inizio_label, br(),
+                        "Data ultima movimentazione: ", data_fine_label, br(),
+                        h4("Capi movimentati"),
+                        "Totale: ", nrow(df), " capi", br(),
+                        prov_ui
                 )
         })
         
@@ -635,10 +649,10 @@ app_server <- function(input, output, session) {
                 
                 div(
                         h4("Riepilogo controlli"),
-                        riga_colore("Animali da controllare manualmente per nascita:", manuale_nascita),
-                        riga_colore("Animali da controllare manualmente per provenienza:", manuale_provenienza),
                         riga_colore("Animali nati in province non indenni (per qualsiasi malattia):", nati_non_indenni),
-                        riga_colore("Animali provenienti da province non indenni (per qualsiasi malattia):", provenienti_non_indenni)
+                        riga_colore("Animali provenienti da province non indenni (per qualsiasi malattia):", provenienti_non_indenni),
+                        riga_colore("Animali da controllare manualmente per nascita:", manuale_nascita),
+                        riga_colore("Animali da controllare manualmente per provenienza:", manuale_provenienza)
                 )
         })
         

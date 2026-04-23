@@ -1,196 +1,205 @@
-# Modulo Download Movimentazioni da Vetinfo BDN
-# Apre le form di Vetinfo con date e parametri pre-compilati via JavaScript.
-# Flusso two-step by design di Vetinfo (form → pagina intermedia → scelta Excel/Gzip).
+# =============================================================================
+# mod_download_vetinfo.R
+# Modulo Shiny: Download Movimentazioni da Vetinfo BDN
 #
-# CONFIGURAZIONE: completare le costanti VETINFO_* con i valori reali osservati
-# in DevTools → Rete → clic su "Invio" → Request Payload / Form Data.
+# Genera bookmarklet JavaScript da trascinare nella barra dei preferiti.
+# Il bookmarklet:
+#   1. Naviga alla pagina del form di ricerca Vetinfo (stampa_movimentazioni_ric.pl)
+#   2. Compila radio button e <select> già presenti nel form
+#   3. Imposta data AL = oggi
+#   4. Lascia solo la data DAL all'utente (un solo campo da compilare)
+#   5. L'utente clicca "Invio" → pagina intermedia → scelta Excel/Gzip
+#
+# Approccio: il bookmarklet gira nel contesto di vetinfo.it (stesso sito),
+# quindi i cookie di sessione sono sempre inclusi — nessun problema SameSite.
+#
+# Prerequisito: essere autenticati su vetinfo.it (SPID/CIE).
+# =============================================================================
 
-# ---- Costanti di configurazione Vetinfo ----
+# ---- Configurazione specie -------------------------------------------------
 
-# URL del form di estrazione dati (action del <form> in Vetinfo)
-VETINFO_URL    <- "https://www.vetinfo.it/PLACEHOLDER"   # DA CONFIGURARE
-VETINFO_METHOD <- "POST"                                  # POST o GET - DA VERIFICARE
-
-# Nomi dei campi data nel form Vetinfo
-VETINFO_DAL <- "P_DATA_DAL"   # nome campo data inizio - DA VERIFICARE
-VETINFO_AL  <- "P_DATA_AL"    # nome campo data fine   - DA VERIFICARE
-
-# Parametri specifici bovini e bufalini
-VETINFO_BOVINI_PARAMS <- list(
-  P_TIPO_REPORT       = "ingressi_bovini",
-  P_AMBIENTE          = "",   # DA CONFIGURARE (valore osservato in DevTools)
-  P_GRSPE_DESCRIZIONE = "",   # DA CONFIGURARE
-  P_GRSPE_ID          = ""    # DA CONFIGURARE
+VETINFO_BOVINI <- list(
+  form_url     = "https://www.vetinfo.it/bovini/stampe/stampa_movimentazioni_ric.pl",
+  tipo_report  = "ingressi_bovini",
+  label        = "Bovini e Bufalini"
 )
 
-# Parametri specifici ovicaprini
-# ATTENZIONE: usare ingressi_ovini_capi_singoli (capi singoli), NON ingressi_ovini
-VETINFO_OVICAPRINI_PARAMS <- list(
-  P_TIPO_REPORT       = "ingressi_ovini_capi_singoli",
-  P_AMBIENTE          = "",   # DA CONFIGURARE (valore osservato in DevTools)
-  P_GRSPE_DESCRIZIONE = "",   # DA CONFIGURARE
-  P_GRSPE_ID          = ""    # DA CONFIGURARE
+# NOTA: "ingressi_ovini_capi_singoli" = capi singoli; NON usare "ingressi_ovini" (insiemi)
+VETINFO_OVICAPRINI <- list(
+  form_url     = "https://www.vetinfo.it/ovicaprini/stampe/stampa_movimentazioni_ric.pl",
+  tipo_report  = "ingressi_ovini_capi_singoli",
+  label        = "Ovicaprini capi singoli"
 )
 
-# ---- UI ----
+# ---- Helper: genera javascript: URL del bookmarklet -----------------------
+# Segue lo stesso pattern del bookmarklet ovicaprini verificato e funzionante.
+# Il JS usa virgolette singole ovunque: le virgolette doppie nei selettori CSS
+# vengono gestite correttamente da htmltools quando il valore finisce in href="".
+
+.vetinfo_bookmarklet <- function(cfg) {
+  url         <- cfg$form_url
+  tipo_report <- cfg$tipo_report
+  label       <- cfg$label
+
+  paste0(
+    'javascript:(function(){',
+      'var T="', url, '";',
+      'function a(){',
+        'var f=document.querySelector(\'form[name="ricerca"]\');',
+        'if(!f){',
+          'alert("Pagina non riconosciuta. Aprire prima la pagina Movimentazioni ', label, ' su VetInfo.");',
+          'return;',
+        '}',
+        'function r(n,v){',
+          'var x=f.querySelector(\'input[name="\'+n+\'"][value="\'+v+\'"]\');',
+          'if(x)x.checked=true;',
+        '}',
+        'r("P_DOVE","altre_regioni");',
+        'r("P_TIPO_REPORT","', tipo_report, '");',
+        'r("P_TIPO_STAMPA","EXCEL");',
+        'var h=new Date();',
+        'var gg=("0"+h.getDate()).slice(-2);',
+        'var mm=("0"+(h.getMonth()+1)).slice(-2);',
+        'var aa=h.getFullYear();',
+        'f.querySelector(\'select[name="P_DT_CONTROLLO_GG_A"]\').value=gg;',
+        'f.querySelector(\'select[name="P_DT_CONTROLLO_MM_A"]\').value=mm;',
+        'f.querySelector(\'select[name="P_DT_CONTROLLO_AA_A"]\').value=aa;',
+        'alert("\\u2705 Impostato:\\n',
+          '\\u2022 Solo movim. verso altre regioni\\n',
+          '\\u2022 ', label, ' IN INGRESSO\\n',
+          '\\u2022 Formato EXCEL\\n',
+          '\\u2022 Data AL: "+gg+"/"+mm+"/"+aa+',
+          '"\\n\\nOra imposta la data DAL e clicca Invio.");',
+      '}',
+      'if(window.location.href.indexOf(T)!==-1){',
+        # già sulla pagina giusta: compila direttamente
+        'a();',
+      '}else if(window.location.hostname==="www.vetinfo.it"||window.location.hostname==="vetinfo.it"){',
+        # su Vetinfo ma pagina diversa: naviga nella stessa scheda (same-origin → setInterval funziona)
+        'window.location.href=T;',
+        'var t=0;',
+        'var w=setInterval(function(){',
+          't+=500;',
+          'if(document.querySelector(\'form[name="ricerca"]\')){clearInterval(w);a();}',
+          'if(t>10000){clearInterval(w);}',
+        '},500);',
+      '}else{',
+        # non su Vetinfo: apre nuova scheda, istruzioni per ricliccare
+        'window.open(T,"_blank");',
+        'alert("Vetinfo aperto in nuova scheda.\\nNella nuova scheda clicca di nuovo il segnalibro per pre-compilare il form.");',
+      '}',
+    '})();'
+  )
+}
+
+# ---- UI --------------------------------------------------------------------
 
 mod_download_vetinfo_ui <- function(id) {
   ns <- NS(id)
 
-  # Inietta la configurazione R come variabile globale JavaScript
-  js_cfg <- tags$script(HTML(paste0(
-    "var VETINFO_CFG = {",
-    "  url:    \"", VETINFO_URL, "\",",
-    "  method: \"", VETINFO_METHOD, "\",",
-    "  dal:    \"", VETINFO_DAL, "\",",
-    "  al:     \"", VETINFO_AL, "\",",
-    "  ns:     \"", id, "\",",
-    "  bovini: {",
-    "    P_TIPO_REPORT:       \"", VETINFO_BOVINI_PARAMS$P_TIPO_REPORT, "\",",
-    "    P_AMBIENTE:          \"", VETINFO_BOVINI_PARAMS$P_AMBIENTE, "\",",
-    "    P_GRSPE_DESCRIZIONE: \"", VETINFO_BOVINI_PARAMS$P_GRSPE_DESCRIZIONE, "\",",
-    "    P_GRSPE_ID:          \"", VETINFO_BOVINI_PARAMS$P_GRSPE_ID, "\"",
-    "  },",
-    "  ovicaprini: {",
-    "    P_TIPO_REPORT:       \"", VETINFO_OVICAPRINI_PARAMS$P_TIPO_REPORT, "\",",
-    "    P_AMBIENTE:          \"", VETINFO_OVICAPRINI_PARAMS$P_AMBIENTE, "\",",
-    "    P_GRSPE_DESCRIZIONE: \"", VETINFO_OVICAPRINI_PARAMS$P_GRSPE_DESCRIZIONE, "\",",
-    "    P_GRSPE_ID:          \"", VETINFO_OVICAPRINI_PARAMS$P_GRSPE_ID, "\"",
-    "  }",
-    "};"
-  )))
-
-  # Logica JavaScript: legge le date dal datepicker Shiny in formato ISO yyyy-mm-dd
-  # e sottomette il form a Vetinfo in una nuova scheda del browser.
-  # IMPORTANTE: si legge dal datepicker interno (Date object → ISO), NON dal
-  # testo formattato visibile all'utente (che sarebbe dd/mm/yyyy).
-  js_logic <- tags$script(HTML('
-    $(function() {
-
-      function getISODate(inputId) {
-        var dp = $("#" + inputId).data("datepicker");
-        if (!dp || !dp.dates || dp.dates.length === 0) return null;
-        var d = dp.dates[dp.dates.length - 1];
-        if (!d) return null;
-        // Usa metodi UTC per evitare shift di fuso orario
-        var y   = d.getUTCFullYear();
-        var m   = ("0" + (d.getUTCMonth() + 1)).slice(-2);
-        var day = ("0" + d.getUTCDate()).slice(-2);
-        return y + "-" + m + "-" + day;
-      }
-
-      function submitVetinfoForm(specie) {
-        var cfg = VETINFO_CFG;
-        var pfx = cfg.ns + "-";
-
-        var dataDal = getISODate(pfx + "data_inizio");
-        var dataAl  = getISODate(pfx + "data_fine");
-
-        if (!dataDal || !dataAl) {
-          alert("Selezionare le date di inizio e fine prima di procedere.");
-          return;
-        }
-
-        var p = Object.assign(
-          {},
-          specie === "bovini" ? cfg.bovini : cfg.ovicaprini
-        );
-        p[cfg.dal] = dataDal;
-        p[cfg.al]  = dataAl;
-
-        var f = document.createElement("form");
-        f.method = cfg.method;
-        f.action = cfg.url;
-        f.target = "_blank";
-
-        Object.keys(p).forEach(function(k) {
-          var inp = document.createElement("input");
-          inp.type  = "hidden";
-          inp.name  = k;
-          inp.value = p[k];
-          f.appendChild(inp);
-        });
-
-        document.body.appendChild(f);
-        f.submit();
-        document.body.removeChild(f);
-      }
-
-      $(document).on("click", "#" + VETINFO_CFG.ns + "-btn_bovini", function() {
-        submitVetinfoForm("bovini");
-      });
-      $(document).on("click", "#" + VETINFO_CFG.ns + "-btn_ovicaprini", function() {
-        submitVetinfoForm("ovicaprini");
-      });
-    });
-  '))
+  bm_bovini     <- .vetinfo_bookmarklet(VETINFO_BOVINI)
+  bm_ovicaprini <- .vetinfo_bookmarklet(VETINFO_OVICAPRINI)
 
   tagList(
-    js_cfg,
-    js_logic,
-
     bslib::card(
-      title = "Download movimentazioni da Vetinfo BDN",
-      class = "mb-3",
+      bslib::card_header(
+        tags$span(icon("download"), " Download movimentazioni da Vetinfo BDN")
+      ),
+      bslib::card_body(
 
-      p("Impostare le date e cliccare il pulsante per aprire il form di Vetinfo ",
-        "pre-compilato in una nuova scheda. La ", tags$strong("data fine"),
-        " è preimpostata a oggi."),
-
-      fluidRow(
-        column(4,
-          dateInput(ns("data_inizio"),
-                    "Data inizio",
-                    value    = Sys.Date() - 30,
-                    format   = "dd/mm/yyyy",
-                    language = "it")
+        # Istruzioni principali
+        div(
+          class = "alert alert-info mb-3",
+          tags$strong("Come usare i bookmarklet:"),
+          tags$ol(
+            class = "mb-0",
+            tags$li(
+              "Trascinare uno dei pulsanti qui sotto nella ",
+              tags$strong("barra dei preferiti"), " del browser (operazione una-tantum)."
+            ),
+            tags$li(
+              "Autenticarsi su Vetinfo (SPID/CIE) e tenerlo aperto in una scheda."
+            ),
+            tags$li(
+              tags$strong("Dalla scheda Vetinfo"), " cliccare il segnalibro: il form viene ",
+              "pre-compilato automaticamente (P_DOVE, tipo report, formato, data AL = oggi)."
+            ),
+            tags$li(
+              "Se si clicca il segnalibro da un'altra scheda (es. questa app), Vetinfo si apre in ",
+              "una nuova scheda: spostarsi lì e ", tags$strong("ricliccare il segnalibro"),
+              " per pre-compilare il form."
+            ),
+            tags$li(
+              "Impostare solo la ", tags$strong("data DAL"), " e cliccare ",
+              tags$strong("Invio"), "."
+            ),
+            tags$li(
+              "Nella pagina successiva scegliere ",
+              tags$strong("Visualizza excel"), " (.xls) oppure ",
+              tags$strong("Scarica File Gzip"), " (.gz)."
+            )
+          )
         ),
-        column(4,
-          dateInput(ns("data_fine"),
-                    "Data fine",
-                    value    = Sys.Date(),
-                    format   = "dd/mm/yyyy",
-                    language = "it")
-        )
-      ),
 
-      div(
-        class = "d-flex gap-2 mt-2 mb-3",
-        actionButton(ns("btn_bovini"),
-                     "Scarica Bovini e Bufalini",
-                     icon  = icon("download"),
-                     class = "btn-primary"),
-        actionButton(ns("btn_ovicaprini"),
-                     "Scarica Ovicaprini",
-                     icon  = icon("download"),
-                     class = "btn-success")
-      ),
+        # Pulsanti bookmarklet (draggable)
+        p(tags$em("Trascinare nella barra dei preferiti:")),
+        div(
+          class = "d-flex gap-3 mb-3",
+          tags$a(
+            href  = bm_bovini,
+            title = "Trascina nella barra dei preferiti del browser",
+            class = "btn btn-primary",
+            icon("cow"), " Bovini e Bufalini"
+          ),
+          tags$a(
+            href  = bm_ovicaprini,
+            title = "Trascina nella barra dei preferiti del browser",
+            class = "btn btn-success",
+            icon("sheep"), " Ovicaprini"
+          )
+        ),
 
-      hr(),
-
-      div(
-        class = "alert alert-info",
-        role  = "alert",
-        tags$strong("Come funziona:"),
-        tags$ol(
-          tags$li("Assicurarsi di essere autenticati su Vetinfo nel browser."),
-          tags$li("Impostare la ", tags$strong("data di inizio"),
-                  " (la data fine è già impostata a oggi)."),
-          tags$li("Cliccare su un pulsante: si apre una nuova scheda con il form Vetinfo pre-compilato."),
-          tags$li("Nella pagina intermedia di Vetinfo, scegliere il formato (Excel o Gzip) per avviare il download."),
-          tags$li("Ripetere per il secondo gruppo di specie.")
+        # Codice per copia-incolla manuale
+        tags$details(
+          tags$summary(
+            tags$small(tags$em(
+              "Copia-incolla manuale (se il drag-and-drop è bloccato dal browser)"
+            ))
+          ),
+          div(
+            class = "mt-2",
+            tags$p(tags$small(tags$strong("Bovini:"))),
+            tags$textarea(
+              class    = "form-control font-monospace",
+              style    = "font-size:0.65em; height:80px;",
+              readonly = NA,
+              bm_bovini
+            ),
+            tags$p(class = "mt-2", tags$small(tags$strong("Ovicaprini:"))),
+            tags$textarea(
+              class    = "form-control font-monospace",
+              style    = "font-size:0.65em; height:80px;",
+              readonly = NA,
+              bm_ovicaprini
+            ),
+            tags$p(
+              class = "mt-1",
+              tags$small(
+                "Per aggiungere manualmente: Gestione segnalibri → Nuovo segnalibro → ",
+                "incollare il codice nel campo URL."
+              )
+            )
+          )
         )
       )
     )
   )
 }
 
-# ---- Server ----
+# ---- Server ----------------------------------------------------------------
 
 mod_download_vetinfo_server <- function(id) {
   moduleServer(id, function(input, output, session) {
-    # Tutto gestito nel browser via JavaScript.
-    # Nessuna logica server necessaria: il browser è già autenticato in Vetinfo
-    # e gestisce autonomamente la sessione e il download.
+    # Nessuna logica server: i bookmarklet sono URL statici generati all'avvio.
   })
 }
