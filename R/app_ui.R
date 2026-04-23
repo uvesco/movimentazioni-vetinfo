@@ -262,7 +262,7 @@ app_ui <- function() {
 							h4("Citazione suggerita"),
 							tags$blockquote(
 								style = "background-color: #f8f9fa; border-left: 4px solid #6c757d; padding: 12px 16px; margin: 10px 0; font-family: monospace; font-size: 0.95em; user-select: all; cursor: text;",
-								"Dati elaborati con l'applicazione movimentazioni-vetinfo (https://github.com/uvesco/movimentazioni-vetinfo)."
+								"Dati elaborati con l'applicazione movimentazioni-vetinfo ( https://github.com/uvesco/movimentazioni-vetinfo )."
 							)
 						)
 					)
