@@ -1,5 +1,9 @@
 # Modulo Upload Movimentazioni (accetta .xls e .gz)                 # descrizione del modulo
 # Dipendenze: readxl, R.utils, bslib, shiny                         # pacchetti richiesti
+#
+# In modalità "doppia" il modulo accetta più file di gruppi diversi (bovini e
+# ovicaprini), li smista per gruppo rilevato e li combina dentro ciascun gruppo.
+# Espone i dati come lista per gruppo: list(bovini = df|NULL, ovicaprini = df|NULL).
 
 mod_upload_movimentazioni_ui <- function(id) {                      # interfaccia del modulo di upload
         ns <- NS(id)                                                # namespace per elementi dell'interfaccia
@@ -13,7 +17,7 @@ mod_upload_movimentazioni_ui <- function(id) {                      # interfacci
                         buttonLabel = "Sfoglia…",                  # etichetta del bottone
                         multiple = TRUE                             # permette selezione multipla
                 ),
-                shiny::helpText("È possibile caricare più file contemporaneamente, purché siano tutti dello stesso gruppo di specie. I file devono essere i .xls originali oppure gli stessi compressi come .gz.") # nota informativa
+                shiny::helpText("È possibile caricare più file contemporaneamente, anche di gruppi di specie diversi: i file di bovini e ovicaprini vengono riconosciuti automaticamente e gestiti in tab separati. I file devono essere i .xls originali oppure gli stessi compressi come .gz.") # nota informativa
         )
 }
 
@@ -72,10 +76,12 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         }
                 }
 
-                dati <- reactiveVal(NULL)                                 # variabile reattiva per i dati caricati
-                gruppo_colonne <- reactiveVal(NULL)                       # variabile reattiva per il gruppo determinato
-                nome_file <- reactiveVal(NULL)                            # nome file caricato
-                upload_status <- reactiveVal(list(type = "idle", message = NULL)) # stato dell'upload per messaggi persistenti
+                # lista per gruppo: chiavi "bovini"/"ovicaprini", default NULL
+                vuoto_per_gruppo <- function() list(bovini = NULL, ovicaprini = NULL)
+
+                animali_per_gruppo <- reactiveVal(vuoto_per_gruppo())     # dati combinati per gruppo
+                nomi_per_gruppo <- reactiveVal(vuoto_per_gruppo())        # nomi file originali per gruppo
+                upload_status <- reactiveVal(list(type = "idle", message = NULL)) # stato dell'upload per messaggi
 
                 notify_upload_issue <- function(msg, type = "error", duration = 8, status_type = "error") {
                         upload_status(list(type = status_type, message = msg))
@@ -180,11 +186,9 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
                         df_standard <- df[, col_standard, drop = FALSE]   # mantiene solo le colonne comuni
                         attr(df_standard, "gruppo_specie") <- gruppo_match # memorizza il gruppo determinato
 
-                        upload_status(list(type = "success", message = NULL))
-
                         if (nrow(df_standard) == 0) {
                                 notify_upload_issue(
-                                        "File vuoto per i parametri selezionati",
+                                        paste0("File vuoto per i parametri selezionati (", gruppo_match, ")"),
                                         type = "warning",
                                         duration = 6,
                                         status_type = "empty"
@@ -203,117 +207,98 @@ mod_upload_movimentazioni_server <- function(id) {                  # logica del
 
                 observeEvent(input$file, {                                # osserva l'input file
                         if (is.null(input$file)) {                        # nessun file selezionato
-                                dati(NULL)
-                                gruppo_colonne(NULL)
-                                nome_file(NULL)
+                                animali_per_gruppo(vuoto_per_gruppo())
+                                nomi_per_gruppo(vuoto_per_gruppo())
                                 upload_status(list(type = "idle", message = NULL))
                                 return()
                         }
 
                         req(input$file$datapath)                          # verifica che il percorso esista
-                        
+
                         # Ottieni lista di file (singolo o multiplo)
                         file_paths <- input$file$datapath
                         file_names <- input$file$name
-                        
+
                         # Verifica che paths e names abbiano la stessa lunghezza
                         if (length(file_paths) != length(file_names)) {
                                 notify_upload_issue("Errore interno: mancata corrispondenza tra percorsi e nomi dei file.")
-                                dati(NULL)
-                                gruppo_colonne(NULL)
-                                nome_file(NULL)
+                                animali_per_gruppo(vuoto_per_gruppo())
+                                nomi_per_gruppo(vuoto_per_gruppo())
                                 return()
                         }
-                        
+
                         n_files <- length(file_paths)
-                        
+
                         withProgress(message = "Lettura file…", value = 0.1, {   # mostra barra di avanzamento
-                                
-                                # Lista per memorizzare i dataframe standardizzati e i gruppi
-                                df_list <- list()
-                                gruppi_list <- character(0)
-                                
+
+                                # Accumulatori: per ogni gruppo una lista di dataframe e nomi file
+                                df_per_gruppo <- list()
+                                file_per_gruppo <- list()
+                                errori <- character(0)
+
                                 # Leggi e processa ogni file
                                 for (i in seq_along(file_paths)) {
-                                        incProgress(0.1 / n_files, detail = paste("File", i, "di", n_files))
-                                        
+                                        incProgress(0.6 / n_files, detail = paste("File", i, "di", n_files))
+
                                         df <- tryCatch(                           # gestisce errori durante la lettura del file
                                                 read_mov_xls_or_gz(file_paths[i], orig_name = file_names[i]), # legge il file
                                                 error = function(e) {
-                                                        notify_upload_issue(paste("Errore nel file", file_names[i], ":", e$message))  # mostra messaggio di errore
+                                                        errori <<- c(errori, paste0(file_names[i], ": ", e$message))
                                                         NULL                      # restituisce NULL in caso di errore
                                                 }
                                         )
-                                        
-                                        if (is.null(df)) {                        # se la lettura è fallita
-                                                dati(NULL)
-                                                gruppo_colonne(NULL)
-                                                nome_file(NULL)
-                                                return()
-                                        }
-                                        
-                                        standardizzato <- standardize_movimentazioni(df, filename = file_names[i]) # standardizza dati e gruppo
-                                        if (is.null(standardizzato)) {
-                                                dati(NULL)
-                                                gruppo_colonne(NULL)
-                                                nome_file(NULL)
-                                                return()
-                                        }
-                                        
-                                        df_list[[i]] <- standardizzato$animali
-                                        gruppi_list <- c(gruppi_list, standardizzato$gruppo)
-                                }
-                                
-                                incProgress(0.4)
-                                
-                                # Verifica che tutti i file appartengano allo stesso gruppo di specie
-                                gruppi_unici <- unique(gruppi_list)
-                                if (length(gruppi_unici) > 1) {
-                                        notify_upload_issue(
-                                                paste("Errore: i file caricati appartengono a gruppi di specie diversi:",
-                                                      paste(gruppi_unici, collapse = ", "),
-                                                      ". Caricare solo file dello stesso gruppo di specie.")
+
+                                        if (is.null(df)) next                    # salta il file non leggibile, prosegue con gli altri
+
+                                        standardizzato <- tryCatch(               # standardizza dati e gruppo
+                                                standardize_movimentazioni(df, filename = file_names[i]),
+                                                error = function(e) {
+                                                        errori <<- c(errori, paste0(file_names[i], ": ", e$message))
+                                                        NULL
+                                                }
                                         )
-                                        dati(NULL)
-                                        gruppo_colonne(NULL)
-                                        nome_file(NULL)
-                                        return()
+                                        if (is.null(standardizzato)) next         # notifica già mostrata o errore raccolto
+
+                                        g <- standardizzato$gruppo
+                                        df_per_gruppo[[g]] <- c(df_per_gruppo[[g]], list(standardizzato$animali))
+                                        file_per_gruppo[[g]] <- c(file_per_gruppo[[g]], file_names[i])
                                 }
-                                
+
                                 incProgress(0.2)
-                                
-                                # Combina tutti i dataframe in uno solo
-                                if (length(df_list) == 1) {
-                                        df_combinato <- df_list[[1]]
+
+                                # Combina i dataframe dentro ciascun gruppo (rbind: col_standard identiche)
+                                risultato <- vuoto_per_gruppo()
+                                nomi <- vuoto_per_gruppo()
+                                for (g in names(df_per_gruppo)) {
+                                        dfs <- df_per_gruppo[[g]]
+                                        risultato[[g]] <- if (length(dfs) == 1) dfs[[1]] else do.call(rbind, dfs)
+                                        nomi[[g]] <- paste(file_per_gruppo[[g]], collapse = ", ")
+                                }
+
+                                incProgress(0.2)
+
+                                animali_per_gruppo(risultato)             # salva i dati combinati per gruppo
+                                nomi_per_gruppo(nomi)                     # salva i nomi file per gruppo
+
+                                if (length(errori) > 0) {
+                                        notify_upload_issue(
+                                                paste0("Alcuni file non sono stati importati: ",
+                                                       paste(errori, collapse = "; ")),
+                                                type = "warning",
+                                                duration = 10,
+                                                status_type = "error"
+                                        )
                                 } else {
-                                        df_combinato <- do.call(rbind, df_list)
+                                        upload_status(list(type = "success", message = NULL))
                                 }
-                                
-                                incProgress(0.2)
-                                
-                                dati(df_combinato)                             # salva i dati combinati
-                                gruppo_colonne(gruppi_unici[1])                # salva il gruppo determinato
-                                nome_file(paste(file_names, collapse = ", "))  # salva i nomi file originali
                         })
                 }, ignoreInit = TRUE)                                     # esegue solo dopo il primo caricamento
 
-                # verifica validità del file (colonne e righe)
-                file_check <- reactive({
-                        req(dati())                                      # richiede che i dati siano presenti
-                        req(gruppo_colonne())                            # richiede che il gruppo sia definito
-                        
-                        # verifica che le colonne del dataframe corrispondano a quelle standard
-                        identical(colnames(dati()), col_standard) &&     # verifica corrispondenza colonne
-                                nrow(dati()) > 0                         # e presenza di almeno una riga
-                })
-                
-                # restituisce il data.frame caricato (o NULL) e il gruppo collegato
+                # restituisce i dati per gruppo, i nomi file e lo stato
                 list(
-                        animali = reactive(dati()),                      # espone i dati standardizzati
-                        gruppo = reactive(gruppo_colonne()),              # espone il gruppo determinato
-                        status = reactive(upload_status()),               # espone lo stato dell'upload per messaggi
-                        file_check = file_check,                         # espone la verifica validità file
-                        file_name = reactive(nome_file())                # espone il nome file caricato
+                        animali_per_gruppo = reactive(animali_per_gruppo()), # list(bovini=df|NULL, ovicaprini=df|NULL)
+                        nomi_per_gruppo = reactive(nomi_per_gruppo()),       # nomi file originali per gruppo
+                        status = reactive(upload_status())                   # stato dell'upload per messaggi
                 )
         })
 }

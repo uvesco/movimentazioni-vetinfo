@@ -3,10 +3,12 @@
 # =============================================================================
 # Questo file definisce l'interfaccia utente dell'applicazione Shiny.
 # L'app è organizzata in tab per gestire diverse funzionalità:
-# - Input: caricamento file movimentazioni
+# - Input: caricamento file movimentazioni (uno o più, anche di gruppi diversi) +
+#   riepiloghi per gruppo e bottone email / download capi problematici (comune)
 # - Help: documentazione e guida utente (sempre visibile)
-# - Tab dinamici: Controllo Manuale, Provenienze, Nascite, Dataset
-#   (mostrati solo quando necessario dopo il caricamento dati) 
+# - Tab dinamici per gruppo di specie (Bovini, Ovicaprini): inseriti dal server
+#   appena il relativo file è caricato; ognuno contiene i sottotab Sommario,
+#   Dataset, Non Indenni, Controllo Manuale (vedi R/mod_specie.R)
 # =============================================================================
 
 app_ui <- function() {
@@ -37,12 +39,17 @@ app_ui <- function() {
 							textOutput("tipo_file")
 						)
 					),
-					# Pannello principale con informazioni sul file caricato
+					# Pannello principale: azioni (email/download) + riepiloghi per gruppo
 					mainPanel(
-						uiOutput("n_animali"),                 # Conteggio animali + breakdown
-						uiOutput("riepilogo_controlli"),       # Riepilogo controlli
-						uiOutput("titolo_malattie"),           # Titolo sezione malattie
-						tableOutput("malattie_importate")      # Tabella malattie rilevanti
+						# Riga azioni: invio email riepilogo + (se presenti) capi problematici
+						div(
+							class = "d-flex gap-2 my-3 flex-wrap align-items-center",
+							uiOutput("email_link", inline = TRUE),
+							uiOutput("ui_capi_problematici", inline = TRUE)
+						),
+						# Riepilogo per gruppo di specie (renderizzato solo se caricato)
+						mod_specie_summary_ui("specie_bovini"),
+						mod_specie_summary_ui("specie_ovicaprini")
 					)
 				)
 			),
@@ -64,10 +71,10 @@ app_ui <- function() {
 							h4("Indice"),
 							tags$ul(
 								tags$li(tags$a(href = "#help-introduzione", "Introduzione")),
+								tags$li(tags$a(href = "#help-download-bdn", "Download BDN")),
 								tags$li(tags$a(href = "#help-caricamento", "Caricamento file")),
 								tags$li(tags$a(href = "#help-elaborazione", "Elaborazione dati")),
 								tags$li(tags$a(href = "#help-risultati", "Tab risultati")),
-								tags$li(tags$a(href = "#help-download-bdn", "Download BDN")),
 								tags$li(tags$a(href = "#help-download", "Download")),
 								tags$li(tags$a(href = "#help-note", "Note tecniche")),
 								tags$li(tags$a(href = "#help-disclaimer", "Disclaimer")),
@@ -91,7 +98,8 @@ app_ui <- function() {
 							  "estrarre informazioni geografiche rilevanti (comune di provenienza e provincia di nascita) 
 							   e verificare lo stato sanitario delle zone di provenienza e nascita degli animali."),
 							h3(id = "help-download-bdn", "2. Download da BDN"),
-							
+
+							h4("2.1 Download manuale (applicativo Interrogazione BDN)"),
 							p(
 								"I dati possono essere scaricati indifferentemente dagli applicativi BDN di specie o dall'applicativo Interrogazione BDN, ",
 								"seguono i passaggi per l'interrogazione dell'applicativo Interrogazione BDN:"
@@ -125,59 +133,35 @@ app_ui <- function() {
 							p(
 								"In alternativa alla navigazione manuale è possibile utilizzare dei bookmarklet che aprono ",
 								"direttamente il form di estrazione Vetinfo pre-compilato ",
-								"(P_DOVE, tipo report, formato, data AL = oggi). ",
+								"(filtro movimentazioni, tipo report, formato EXCEL, data AL = oggi). ",
 								"È sufficiente impostare solo la ", tags$strong("data DAL"), " e cliccare Invio."
 							),
+							p(
+								"Per ciascuna specie sono disponibili due varianti: ",
+								tags$strong("tutte le movimentazioni in ingresso"), " oppure ",
+								tags$strong("solo quelle in provenienza da altre regioni"), "."
+							),
+							p(
+								"Prerequisito: essere autenticati su Vetinfo (SPID/CIE) ed essere entrati ",
+								"nell'", tags$strong("applicativo della specie"),
+								" (Bovini e Bufalini / Ovini e Caprini) con il proprio ruolo, altrimenti ",
+								"la pagina del form risponde \"RUOLO NON ASSOCIATO ALL'UTENTE\"."
+							),
 							p(tags$em(
-								"Trascinare i pulsanti nella barra dei preferiti del browser. ",
-								"Il bookmarklet funziona da qualsiasi pagina di Vetinfo ",
-								"(se cliccato da un'altra pagina apre Vetinfo in una nuova scheda, ",
-								"da ricliccare una volta arrivati)."
+								"Trascinare i pulsanti nella barra dei preferiti del browser, oppure usare ",
+								tags$strong("Copia codice"), " e incollare il codice come URL di un nuovo segnalibro. ",
+								"Cliccato dalla pagina del form, il segnalibro lo pre-compila direttamente; ",
+								"cliccato da qualsiasi altra pagina apre il form (stessa scheda se già su ",
+								"Vetinfo, nuova scheda altrimenti): una volta caricato, ricliccare il ",
+								"segnalibro per pre-compilarlo."
 							)),
-							div(
-								class = "d-flex gap-2 mb-2",
-								tags$a(
-									href  = .vetinfo_bookmarklet(VETINFO_BOVINI),
-									title = "Trascina nella barra dei preferiti",
-									class = "btn btn-primary btn-sm",
-									icon("cow"), " Bovini e Bufalini"
-								),
-								tags$a(
-									href  = .vetinfo_bookmarklet(VETINFO_OVICAPRINI),
-									title = "Trascina nella barra dei preferiti",
-									class = "btn btn-success btn-sm",
-									icon("sheep"), " Ovicaprini"
-								)
-							),
-							tags$details(
-								tags$summary(tags$small(tags$em(
-									"Copia-incolla manuale (se il drag-and-drop è bloccato dal browser)"
-								))),
-								div(
-									class = "mt-1",
-									tags$p(tags$small(tags$strong("Bovini:"))),
-									tags$textarea(
-										class = "form-control font-monospace",
-										style = "font-size:0.65em; height:80px;",
-										readonly = NA,
-										.vetinfo_bookmarklet(VETINFO_BOVINI)
-									),
-									tags$p(class = "mt-2", tags$small(tags$strong("Ovicaprini:"))),
-									tags$textarea(
-										class = "form-control font-monospace",
-										style = "font-size:0.65em; height:80px;",
-										readonly = NA,
-										.vetinfo_bookmarklet(VETINFO_OVICAPRINI)
-									),
-									tags$p(
-										class = "mt-1",
-										tags$small(
-											"Aggiungere manualmente: Gestione segnalibri → Nuovo segnalibro → ",
-											"incollare il codice nel campo URL."
-										)
-									)
-								)
-							),
+							p(tags$small(
+								"Nota: con la variante \"solo da altre regioni\" sul form Vetinfo risulta ",
+								"selezionata l'opzione \"Solo movimentazioni verso altre regioni\": ",
+								"l'etichetta del form è unica per ingressi e uscite e, per il report degli ",
+								"ingressi, equivale alla provenienza da altre regioni."
+							)),
+							.vetinfo_bookmarklet_block("help_bm"),
 
 							h3(id = "help-caricamento", "3. Caricamento File"),
 							h4("3.1 Formati supportati"),
@@ -186,11 +170,16 @@ app_ui <- function() {
 								tags$li("File compressi .gz (file .xls compressi come da BDN)")
 							),
 							
-							h4("3.2 Caricamento multiplo"),
-							p("È possibile caricare più file contemporaneamente selezionandoli nella finestra di dialogo. ",
-							  "Tutti i file devono appartenere allo stesso gruppo di specie. ",
-							  "Se i file appartengono a gruppi diversi, verrà mostrato un errore."),
-							
+							h4("3.2 Caricamento multiplo e doppio gruppo"),
+							p("È possibile caricare più file contemporaneamente selezionandoli nella finestra di dialogo, ",
+							  "anche di gruppi di specie diversi. I file vengono riconosciuti e smistati automaticamente: ",
+							  "quelli dello stesso gruppo vengono uniti, mentre bovini e ovicaprini vengono elaborati ",
+							  "separatamente."),
+							p("Per ogni gruppo caricato compare un tab di primo livello dedicato (",
+							  tags$strong("Bovini"), " e/o ", tags$strong("Ovicaprini"), "), ciascuno con i propri sottotab ",
+							  "(Sommario, Dataset, Non Indenni, Controllo Manuale). Il tab di una specie compare appena il ",
+							  "relativo file è caricato, indipendentemente dall'altra."),
+
 							h4("3.3 Gruppi specie supportati"),
 							tags$ul(
 								tags$li("Bovini e bufalini"),
@@ -220,6 +209,9 @@ app_ui <- function() {
 							),
 							
 							h3(id = "help-risultati", "5. Tab Risultati"),
+							p("I risultati sono organizzati in un tab di primo livello per ogni gruppo di specie caricato (",
+							  tags$strong("Bovini"), ", ", tags$strong("Ovicaprini"), "). Dentro a ciascun tab di specie si trovano ",
+							  "i sottotab descritti di seguito."),
 							h4("5.1 Controllo Manuale"),
 							p("Mostra gli animali italiani per cui non è stato possibile identificare:"),
 							tags$ul(
@@ -239,7 +231,16 @@ app_ui <- function() {
 							
 							h4("5.3 Dataset"),
 							p("Contiene il dataset completo con tutti i dati animali e lo stato sanitario delle malattie, scaricabile in Excel."),
-							
+
+							h4("5.4 Invio email riepilogo"),
+							p("Nella pagina ", tags$strong("Input"), " il pulsante ", tags$strong("Invia email riepilogo"),
+							  " apre il client di posta dell'utente con un'email precompilata (oggetto e corpo) contenente il ",
+							  "riassunto dei controlli per i gruppi caricati. Serve tipicamente a comunicare l'esito negativo, ",
+							  "cioè a documentare di aver effettuato il controllo, senza bisogno di allegati."),
+							p("Quando sono presenti capi problematici (positività, evento raro), accanto al pulsante email compare ",
+							  tags$strong("Scarica capi problematici"), ": scarica un file Excel (un foglio per gruppo) con gli ",
+							  "animali provenienti/nati in zone non indenni o da controllare manualmente, da commentare e allegare a mano."),
+
 							h3(id = "help-download", "6. Download"),
 							p("Ogni tab con tabelle permette il download dei dati in formato Excel."),
 							

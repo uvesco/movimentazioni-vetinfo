@@ -4,8 +4,10 @@
 # modulo per importare i dati geografici delle malattie
 #2do: importare altre malattie dagli utenti
 
-mod_import_malattie <- function(id, gruppo) {
+mod_import_malattie <- function(id, gruppo = NULL) {
 	# definizione del server del modulo
+	# NOTA: l'argomento `gruppo` è mantenuto per compatibilità ma non è usato:
+	# il modulo carica i dati di tutte le specie e li ritorna indicizzati per gruppo.
 	moduleServer(id, function(input, output, session) {
 		# modulo server vero e proprio
 		

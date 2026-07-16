@@ -415,9 +415,54 @@ filtra_animali_non_indenni <- function(df_animali, campo_malattia) {
 	
 	# Filtra: valore FALSE = zona non indenne
 	df_non_indenni <- df_animali[
-		!is.na(df_animali[[campo_malattia]]) & 
+		!is.na(df_animali[[campo_malattia]]) &
 		df_animali[[campo_malattia]] == FALSE,
 	]
-	
+
 	return(df_non_indenni)
+}
+
+# =============================================================================
+# FUNZIONE 7: CREA IDENTIFICATIVO LOTTO
+# =============================================================================
+# Costruisce una chiave testuale che identifica un "lotto" di movimentazione
+# combinando stabilimento di destinazione, di origine, data e motivo di ingresso.
+# Usata per contare i lotti distinti nei sommari.
+#
+# PARAMETRI:
+# - df: dataframe movimentazioni (colonne dest_stabilimento_cod, orig_stabilimento_cod,
+#       ingresso_data, ingresso_motivo)
+#
+# RITORNA:
+# - vettore character con un identificativo di lotto per riga (character(0) se df vuoto)
+# =============================================================================
+crea_lotto_id <- function(df) {
+	if (is.null(df) || nrow(df) == 0) {
+		return(character(0))
+	}
+	n_righe <- nrow(df)
+	normalizza_valore <- function(x) {
+		if (is.list(x)) {
+			x <- vapply(x, function(item) {
+				if (length(item) == 0 || all(is.na(item))) {
+					return("")
+				}
+				as.character(item[1])
+			}, character(1))
+		} else {
+			x <- as.character(x)
+		}
+		x[is.na(x)] <- ""
+		rep_len(x, n_righe)
+	}
+	valori <- lapply(
+		list(
+			dest_stabilimento_cod = df$dest_stabilimento_cod,
+			orig_stabilimento_cod = df$orig_stabilimento_cod,
+			ingresso_data = df$ingresso_data,
+			ingresso_motivo = df$ingresso_motivo
+		),
+		normalizza_valore
+	)
+	do.call(paste, c(valori, sep = "|"))
 }
