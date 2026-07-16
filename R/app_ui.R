@@ -147,6 +147,33 @@ app_ui <- function() {
 								" (Bovini e Bufalini / Ovini e Caprini) con il proprio ruolo, altrimenti ",
 								"la pagina del form risponde \"RUOLO NON ASSOCIATO ALL'UTENTE\"."
 							),
+							p(
+								"È inoltre disponibile un bookmarklet di ",
+								tags$strong("download automatico doppia specie"),
+								": chiede l'intervallo di date (DAL obbligatoria, AL preimpostata a oggi) ",
+								"e il filtro provenienza, poi compila i form, avvia le ricerche e scarica ",
+								"da solo i file .gz di entrambe le specie in una finestra dedicata. Avvertenze:"
+							),
+							tags$ul(
+								tags$li(
+									"cliccarlo da una pagina di ", tags$strong("www.vetinfo.it"), " e ",
+									tags$strong("non chiudere né cambiare pagina nella scheda di partenza"),
+									" durante l'esecuzione: è lì che gira l'automazione e alla fine compare il riepilogo;"
+								),
+								tags$li(
+									"il ruolo deve essere associato in ", tags$strong("entrambi"),
+									" gli applicativi di specie nella stessa sessione;"
+								),
+								tags$li(
+									"consentire i popup per vetinfo.it; al secondo file Chrome può chiedere ",
+									"una volta il permesso di scaricare più file;"
+								),
+								tags$li(
+									"al termine (o in caso di errore sull'ultima specie elaborata) la finestra ",
+									"di lavoro resta sulla pagina raggiunta: si può completare o ripetere a mano ",
+									"con \"Scarica File Gzip\"."
+								)
+							),
 							p(tags$em(
 								"Trascinare i pulsanti nella barra dei preferiti del browser, oppure usare ",
 								tags$strong("Copia codice"), " e incollare il codice come URL di un nuovo segnalibro. ",
