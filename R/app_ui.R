@@ -45,6 +45,7 @@ app_ui <- function() {
 						div(
 							class = "d-flex gap-2 my-3 flex-wrap align-items-center",
 							uiOutput("email_link", inline = TRUE),
+							uiOutput("ui_email_eml", inline = TRUE),
 							uiOutput("ui_capi_problematici", inline = TRUE)
 						),
 						# Riepilogo per gruppo di specie (renderizzato solo se caricato)
@@ -267,6 +268,14 @@ app_ui <- function() {
 							p("Quando sono presenti capi problematici (positività, evento raro), accanto al pulsante email compare ",
 							  tags$strong("Scarica capi problematici"), ": scarica un file Excel (un foglio per gruppo) con gli ",
 							  "animali provenienti/nati in zone non indenni o da controllare manualmente, da commentare e allegare a mano."),
+							p("Il pulsante ", tags$strong("Prepara email (.eml)"), " genera invece un file email completo: ",
+							  "corpo in HTML con esiti evidenziati in ", tags$span(style = "color: green;", "verde"),
+							  " (nessun problema) o ", tags$span(style = "color: red;", "rosso"), " (capi a rischio), ",
+							  "tabella dei capi problematici nel corpo e file Excel già allegato quando presenti. ",
+							  "Se ci sono animali da controllare manualmente, un avviso ricorda che il testo va ",
+							  tags$strong("modificato a mano dopo la verifica in BDN"), " prima dell'invio. ",
+							  "Il file .eml si apre nel client di posta come bozza (Outlook: pronto all'invio; ",
+							  "Thunderbird: ", tags$em("Messaggio → Modifica come nuovo messaggio"), ")."),
 
 							h3(id = "help-download", "6. Download"),
 							p("Ogni tab con tabelle permette il download dei dati in formato Excel."),

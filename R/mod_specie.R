@@ -57,6 +57,10 @@ mod_specie_tabs_ui <- function(id) {
 			value = "non_indenni",
 			uiOutput(ns("ui_diagnostica_non_indenni")),
 			hr(),
+			h3("Dettaglio animali sospetti"),
+			p("Elenco degli animali provenienti o nati in zone non indenni, con malattia e tipo di rischio."),
+			uiOutput(ns("ui_dettaglio_sospetti")),
+			hr(),
 			h3("Riepilogo per stabilimento di destinazione"),
 			p("Numero di animali a rischio per ogni stabilimento di destinazione, suddivisi per malattia e tipo di rischio (provenienza/nascita)."),
 			tableOutput(ns("tabella_riepilogo_non_indenni")),
@@ -634,6 +638,72 @@ mod_specie_server <- function(id, animali, gruppo, malattie) {
 		# OUTPUT NON INDENNI
 		# =====================================================================
 
+		# Dettaglio degli animali sospetti (provenienza o nascita non indenne):
+		# una riga per combinazione capo x tipo di rischio x malattia, con le
+		# colonne geografiche utili alla verifica.
+		dettaglio_sospetti_df <- reactive({
+			prov_ni <- tryCatch(pipeline$animali_provenienza_non_indenni(), error = function(e) list())
+			nasc_ni <- tryCatch(pipeline$animali_nascita_non_indenni(), error = function(e) list())
+
+			parts <- list()
+			add_part <- function(d, tipo, malattia) {
+				if (!is.null(d) && nrow(d) > 0) {
+					d$tipo_rischio <- tipo
+					d$malattia <- malattia
+					parts[[length(parts) + 1]] <<- d
+				}
+			}
+			for (nm in names(prov_ni)) add_part(prov_ni[[nm]], "provenienza", nm)
+			for (nm in names(nasc_ni)) add_part(nasc_ni[[nm]], "nascita", nm)
+
+			if (length(parts) == 0) return(NULL)
+			res <- dplyr::bind_rows(parts)
+
+			cols <- intersect(
+				c("capo_identificativo", "tipo_rischio", "malattia", "ingresso_data",
+				  "ingresso_motivo", "orig_comune_nome", "orig_uts_nome", "orig_reg_nome",
+				  "nascita_uts_nome", "dest_stabilimento_cod", "dest_com"),
+				names(res)
+			)
+			res <- res[, cols, drop = FALSE]
+			res[order(res$capo_identificativo, res$tipo_rischio, res$malattia), , drop = FALSE]
+		})
+
+		output$ui_dettaglio_sospetti <- renderUI({
+			df <- dettaglio_sospetti_df()
+			if (is.null(df) || nrow(df) == 0) {
+				return(div(style = "color: green;",
+					"Nessun animale sospetto per le malattie considerate."))
+			}
+			tagList(
+				DT::DTOutput(ns("tabella_dettaglio_sospetti")),
+				downloadButton(ns("download_dettaglio_sospetti"), "Scarica Excel")
+			)
+		})
+
+		output$tabella_dettaglio_sospetti <- DT::renderDT({
+			df <- dettaglio_sospetti_df()
+			req(df, nrow(df) > 0)
+			DT::datatable(
+				df,
+				options = list(pageLength = 10, scrollX = TRUE),
+				rownames = FALSE
+			)
+		})
+
+		output$download_dettaglio_sospetti <- downloadHandler(
+			filename = function() {
+				grp <- gruppo()
+				grp_lab <- if (is.null(grp)) "specie" else grp
+				paste0("dettaglio_sospetti_", grp_lab, "_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
+			},
+			content = function(file) {
+				df <- dettaglio_sospetti_df()
+				if (is.null(df)) df <- data.frame(messaggio = "Nessun animale sospetto")
+				openxlsx::write.xlsx(df, file)
+			}
+		)
+
 		output$ui_diagnostica_non_indenni <- renderUI({
 			prov_non_indenni <- tryCatch(pipeline$animali_provenienza_non_indenni(), error = function(e) list())
 			nasc_non_indenni <- tryCatch(pipeline$animali_nascita_non_indenni(), error = function(e) list())
@@ -1043,12 +1113,78 @@ mod_specie_server <- function(id, animali, gruppo, malattie) {
 			lines
 		})
 
+		# Dati strutturati per l'email .eml (corpo HTML costruito in app_server):
+		# NULL se il gruppo non e' caricato, altrimenti lista con periodo, conteggi
+		# capi/lotti, esiti dei controlli e tabella compatta dei problematici.
+		riepilogo_email <- reactive({
+			df <- animali()
+			grp <- gruppo()
+			if (is.null(df) || nrow(df) == 0 || is.null(grp)) return(NULL)
+
+			data_inizio <- min(as.Date(df$ingresso_data, format = "%d/%m/%Y"), na.rm = TRUE)
+			data_fine <- max(as.Date(df$ingresso_data, format = "%d/%m/%Y"), na.rm = TRUE)
+
+			n_it <- NA_integer_; n_est <- NA_integer_
+			lot_it <- NA_integer_; lot_est <- NA_integer_
+			df_proc <- tryCatch(pipeline$dati_processati(), error = function(e) NULL)
+			if (!is.null(df_proc) && nrow(df_proc) > 0 && "orig_italia" %in% names(df_proc)) {
+				lot_id <- crea_lotto_id(df_proc)
+				is_it <- df_proc$orig_italia == TRUE
+				is_est <- df_proc$orig_italia == FALSE
+				n_it <- sum(is_it, na.rm = TRUE)
+				n_est <- sum(is_est, na.rm = TRUE)
+				lot_it <- length(unique(lot_id[is_it & !is.na(is_it)]))
+				lot_est <- length(unique(lot_id[is_est & !is.na(is_est)]))
+			}
+
+			df_meta <- tryCatch(malattie()[["metadati"]], error = function(e) NULL)
+			sigle_str <- ""
+			if (!is.null(df_meta)) {
+				sigle <- sub("^IND_", "", toupper(df_meta$campo[df_meta$specie == grp]))
+				if (length(sigle) > 0) sigle_str <- paste0("(", paste(sigle, collapse = ", "), ")")
+			}
+
+			prov_ni <- tryCatch(pipeline$animali_provenienza_non_indenni(), error = function(e) list())
+			nasc_ni <- tryCatch(pipeline$animali_nascita_non_indenni(), error = function(e) list())
+			df_prov <- tryCatch(pipeline$df_provenienza_non_trovati(), error = function(e) data.frame())
+			df_nasc <- tryCatch(pipeline$df_nascita_non_trovati(), error = function(e) data.frame())
+
+			# Tabella compatta dei problematici per il corpo dell'email
+			probl <- capi_problematici_df()
+			tab_probl <- NULL
+			if (!is.null(probl) && nrow(probl) > 0) {
+				cols <- intersect(
+					c("capo_identificativo", "categoria", "malattia", "orig_comune_nome",
+					  "orig_uts_nome", "nascita_uts_nome", "dest_stabilimento_cod"),
+					names(probl)
+				)
+				tab_probl <- probl[, cols, drop = FALSE]
+			}
+
+			list(
+				gruppo = grp,
+				etichetta = stringr::str_to_title(grp),
+				data_inizio = if (is.finite(data_inizio)) format(data_inizio, "%d/%m/%Y") else "N/D",
+				data_fine = if (is.finite(data_fine)) format(data_fine, "%d/%m/%Y") else "N/D",
+				totale = nrow(df),
+				n_nazionale = n_it, lotti_nazionale = lot_it,
+				n_estero = n_est, lotti_estero = lot_est,
+				sigle = sigle_str,
+				nati_non_indenni = conta_animali(nasc_ni),
+				provenienti_non_indenni = conta_animali(prov_ni),
+				manuale_nascita = nrow(df_nasc),
+				manuale_provenienza = nrow(df_prov),
+				problematici = tab_probl
+			)
+		})
+
 		# Valori esposti al server principale
 		list(
 			loaded = loaded,
 			email_text = email_text,
 			capi_problematici_df = capi_problematici_df,
-			n_problematici = n_problematici
+			n_problematici = n_problematici,
+			riepilogo_email = riepilogo_email
 		)
 	})
 }

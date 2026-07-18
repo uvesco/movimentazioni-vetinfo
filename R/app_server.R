@@ -42,6 +42,108 @@
 	build(paste0(substr(body, 1, lo), nota))
 }
 
+# -----------------------------------------------------------------------------
+# Helper: corpo HTML dell'email riepilogo (per il file .eml).
+# `riepiloghi` = lista di liste come da mod_specie riepilogo_email() (non NULL).
+# Colori: verde per esiti a zero, rosso per valori > 0, arancio per i capi da
+# controllare manualmente (testo da aggiornare a mano dopo la verifica).
+# Stili inline: i client di posta ignorano i fogli di stile.
+# -----------------------------------------------------------------------------
+.build_email_html <- function(riepiloghi) {
+	esc <- htmltools::htmlEscape
+	verde <- "#1a7f37"
+	rosso <- "#c1121f"
+	arancio <- "#b35c00"
+
+	riga_stato <- function(testo, valore) {
+		colore <- if (isTRUE(valore > 0)) rosso else verde
+		paste0('<div style="color:', colore, '; font-weight: bold; margin: 2px 0;">',
+			esc(testo), ' ', valore, '</div>')
+	}
+
+	tabella_html <- function(df, max_righe = 100) {
+		n_tot <- nrow(df)
+		df <- utils::head(df, max_righe)
+		celle <- function(valori, tag, extra = "") {
+			paste0("<", tag, ' style="border: 1px solid #999; padding: 3px 6px; ',
+				extra, '">', esc(ifelse(is.na(valori), "", as.character(valori))),
+				"</", tag, ">", collapse = "")
+		}
+		testata <- paste0("<tr>", celle(names(df), "th",
+			"background: #f8d7da; text-align: left;"), "</tr>")
+		righe <- vapply(seq_len(nrow(df)), function(i) {
+			paste0("<tr>", celle(unlist(df[i, ], use.names = FALSE), "td"), "</tr>")
+		}, character(1))
+		nota <- if (n_tot > max_righe) {
+			paste0('<div style="font-size: 12px; color: #555;">Mostrate le prime ',
+				max_righe, " righe di ", n_tot,
+				": dettaglio completo nel file allegato.</div>")
+		} else ""
+		paste0('<table style="border-collapse: collapse; font-size: 12px; margin: 6px 0;">',
+			testata, paste(righe, collapse = ""), "</table>", nota)
+	}
+
+	blocco_specie <- function(r) {
+		righe_capi <- paste0("Totale: ", r$totale, " capi<br/>")
+		if (!is.na(r$n_nazionale)) {
+			righe_capi <- paste0(
+				righe_capi,
+				"Provenienza nazionale: ", r$n_nazionale, " capi (", r$lotti_nazionale, " lotti)<br/>",
+				"Provenienza estera: ", r$n_estero, " capi (", r$lotti_estero, " lotti)<br/>"
+			)
+		}
+
+		controlli <- paste0(
+			riga_stato(paste("Animali nati in province non indenni", r$sigle, ":"),
+				r$nati_non_indenni),
+			riga_stato(paste("Animali provenienti da province non indenni", r$sigle, ":"),
+				r$provenienti_non_indenni)
+		)
+		man_tot <- r$manuale_nascita + r$manuale_provenienza
+		if (man_tot > 0) {
+			controlli <- paste0(
+				controlli,
+				'<div style="color: ', arancio, '; font-weight: bold; margin: 2px 0;">',
+				"Animali da controllare manualmente (nascita: ", r$manuale_nascita,
+				", provenienza: ", r$manuale_provenienza, ") ",
+				"&#8212; ESITO DA VERIFICARE: aggiornare questo testo dopo il controllo in BDN.",
+				"</div>"
+			)
+		}
+
+		probl_html <- ""
+		if (!is.null(r$problematici) && nrow(r$problematici) > 0) {
+			probl_html <- paste0(
+				'<div style="margin-top: 6px; font-weight: bold;">Capi problematici (',
+				r$etichetta, "):</div>",
+				tabella_html(r$problematici)
+			)
+		}
+
+		paste0(
+			'<h2 style="margin: 14px 0 4px 0;">', esc(r$etichetta), "</h2>",
+			'<h3 style="margin: 8px 0 2px 0;">Periodo</h3>',
+			"Data prima movimentazione: ", esc(r$data_inizio), "<br/>",
+			"Data ultima movimentazione: ", esc(r$data_fine), "<br/>",
+			'<h3 style="margin: 8px 0 2px 0;">Capi movimentati</h3>',
+			righe_capi,
+			'<h3 style="margin: 8px 0 2px 0;">Riepilogo controlli</h3>',
+			controlli,
+			probl_html
+		)
+	}
+
+	blocchi <- vapply(riepiloghi, blocco_specie, character(1))
+	paste0(
+		'<html><body style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #222;">',
+		paste(blocchi, collapse = '<hr style="border: none; border-top: 1px solid #ccc; margin: 12px 0;"/>'),
+		'<hr style="border: none; border-top: 1px solid #ccc; margin: 12px 0;"/>',
+		'<p style="font-size: 12px; color: #555;">Dati elaborati con l&#39;applicazione ',
+		'movimentazioni-vetinfo ( https://github.com/uvesco/movimentazioni-vetinfo ).</p>',
+		"</body></html>"
+	)
+}
+
 app_server <- function(input, output, session) {
 
 	# =====================================================================
@@ -221,23 +323,144 @@ app_server <- function(input, output, session) {
 		)
 	})
 
+	# Fogli xlsx dei capi problematici (un foglio per gruppo), condivisi tra il
+	# download diretto e l'allegato dell'email .eml
+	fogli_problematici <- function() {
+		fogli <- list()
+		db <- tryCatch(b$capi_problematici_df(), error = function(e) NULL)
+		do_ <- tryCatch(o$capi_problematici_df(), error = function(e) NULL)
+		if (!is.null(db) && nrow(db) > 0) fogli[["bovini"]] <- db
+		if (!is.null(do_) && nrow(do_) > 0) fogli[["ovicaprini"]] <- do_
+		fogli
+	}
+
 	# Excel multi-foglio (un foglio per gruppo con capi problematici)
 	output$download_capi_problematici <- downloadHandler(
 		filename = function() {
 			paste0("capi_problematici_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
 		},
 		content = function(file) {
-			fogli <- list()
-			db <- tryCatch(b$capi_problematici_df(), error = function(e) NULL)
-			do_ <- tryCatch(o$capi_problematici_df(), error = function(e) NULL)
-			if (!is.null(db) && nrow(db) > 0) fogli[["bovini"]] <- db
-			if (!is.null(do_) && nrow(do_) > 0) fogli[["ovicaprini"]] <- do_
+			fogli <- fogli_problematici()
 			if (length(fogli) == 0) {
 				fogli[["nessun_capo_problematico"]] <- data.frame(
 					messaggio = "Nessun capo problematico individuato"
 				)
 			}
 			openxlsx::write.xlsx(fogli, file)
+		}
+	)
+
+	# =====================================================================
+	# SEZIONE 6: EMAIL .EML (corpo HTML + allegato capi problematici)
+	# =====================================================================
+
+	# Bottone: attivo solo se almeno un gruppo e' caricato
+	output$ui_email_eml <- renderUI({
+		attivo <- isTRUE(b$loaded()) || isTRUE(o$loaded())
+		if (!attivo) {
+			return(tags$button(
+				class = "btn btn-secondary",
+				disabled = NA,
+				icon("envelope-open-text"), " Prepara email (.eml)"
+			))
+		}
+		actionButton(
+			"prepara_eml",
+			label = tagList(icon("envelope-open-text"), " Prepara email (.eml)"),
+			class = "btn btn-primary"
+		)
+	})
+
+	# Al click: modal con l'esito dei controlli; se ci sono capi da controllare
+	# manualmente, avvisa che il testo dell'email va aggiornato a mano dopo la
+	# verifica in BDN. Il download vero e proprio avviene dal bottone nel modal.
+	observeEvent(input$prepara_eml, {
+		rrs <- Filter(Negate(is.null), list(b$riepilogo_email(), o$riepilogo_email()))
+		if (length(rrs) == 0) return()
+
+		ni_tot <- sum(vapply(rrs, function(r) r$nati_non_indenni + r$provenienti_non_indenni, numeric(1)))
+		man_tot <- sum(vapply(rrs, function(r) r$manuale_nascita + r$manuale_provenienza, numeric(1)))
+		n_probl <- sum(vapply(rrs, function(r) {
+			if (is.null(r$problematici)) 0L else nrow(r$problematici)
+		}, integer(1)))
+
+		corpo <- tagList(
+			if (ni_tot == 0 && man_tot == 0) {
+				div(
+					class = "alert alert-success",
+					icon("check-circle"),
+					strong(" Nessun capo problematico: "),
+					"l'email conterrà solo il testo riassuntivo (senza allegati)."
+				)
+			},
+			if (ni_tot > 0) {
+				div(
+					class = "alert alert-danger",
+					icon("exclamation-triangle"),
+					strong(paste0(" ", ni_tot, " animali provenienti/nati in zone non indenni: ")),
+					"l'email includerà la tabella dei capi problematici nel corpo e il file Excel in allegato."
+				)
+			},
+			if (man_tot > 0) {
+				div(
+					class = "alert alert-warning",
+					icon("triangle-exclamation"),
+					strong(" Attenzione: "), man_tot,
+					" animali da controllare manualmente (dati geografici non mappabili). ",
+					"Il testo dell'email li segnala come ", strong("ESITO DA VERIFICARE"), ": ",
+					"dopo la verifica in BDN ", strong("modificare a mano il testo"),
+					" prima dell'invio."
+				)
+			},
+			if (n_probl > 0 && ni_tot == 0) {
+				p("I capi da controllare manualmente saranno comunque inclusi nella tabella e nell'allegato.")
+			},
+			p(tags$small(
+				"Il file .eml si apre nel client di posta come bozza modificabile ",
+				"(Outlook lo apre pronto all'invio; in Thunderbird usare ",
+				tags$em("Messaggio → Modifica come nuovo messaggio"), ")."
+			))
+		)
+
+		showModal(modalDialog(
+			title = "Prepara email riepilogo (.eml)",
+			corpo,
+			footer = tagList(
+				modalButton("Annulla"),
+				downloadButton("download_eml", "Scarica .eml", class = "btn-primary")
+			),
+			easyClose = TRUE
+		))
+	})
+
+	output$download_eml <- downloadHandler(
+		filename = function() {
+			paste0("riepilogo_movimentazioni_", format(Sys.Date(), "%Y%m%d"), ".eml")
+		},
+		content = function(file) {
+			rrs <- Filter(Negate(is.null), list(b$riepilogo_email(), o$riepilogo_email()))
+			if (length(rrs) == 0) {
+				stop("Nessun dato disponibile per l'email.")
+			}
+
+			html <- .build_email_html(rrs)
+			subject <- paste0("Movimentazioni BDN - controlli del ", format(Sys.Date(), "%d/%m/%Y"))
+
+			allegati <- list()
+			fogli <- fogli_problematici()
+			tmp_xlsx <- NULL
+			if (length(fogli) > 0) {
+				tmp_xlsx <- tempfile(fileext = ".xlsx")
+				openxlsx::write.xlsx(fogli, tmp_xlsx)
+				allegati <- list(list(
+					path = tmp_xlsx,
+					name = paste0("capi_problematici_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
+				))
+			}
+
+			.write_eml(.build_eml(subject, html, allegati), file)
+			if (!is.null(tmp_xlsx)) unlink(tmp_xlsx)
+			removeModal()
 		}
 	)
 }
